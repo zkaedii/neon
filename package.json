@@ -43,13 +43,15 @@
     "husky": "^8.0.3",
     "lint-staged": "^15.2.0",
     "live-server": "^1.2.2",
-    "prettier": "^3.2.5",
-    "prettier-plugin-html": "^0.1.0"
+    "prettier": "^3.2.5"
   },
   "lint-staged": {
-    "*.{html,js,json,css}": [
+    "*.{html,js,css}": [
       "prettier --write",
       "eslint --fix"
+    ],
+    "*.json": [
+      "prettier --write"
     ],
     "*.py": [
       "cd text-to-video-app && black --line-length=120",

@@ -9,6 +9,5 @@
   "endOfLine": "lf",
   "bracketSpacing": true,
   "htmlWhitespaceSensitivity": "css",
-  "embeddedLanguageFormatting": "auto",
-  "plugins": ["prettier-plugin-html"]
+  "embeddedLanguageFormatting": "auto"
 }
