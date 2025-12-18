@@ -1,0 +1,34 @@
+# Core dependencies
+gradio>=4.0.0
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# Video processing
+opencv-python>=4.8.0
+imageio>=2.31.0
+imageio-ffmpeg>=0.4.9
+
+# Audio processing (for music integration)
+pydub>=0.25.1
+librosa>=0.10.0
+
+# Model dependencies (open-source models)
+# transformers>=4.35.0
+# diffusers>=0.24.0
+# accelerate>=0.24.0
+# bitsandbytes>=0.41.0  # For 4-bit quantization
+
+# Testing
+pytest>=7.4.0
+pytest-mock>=3.12.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+
+# Utilities
+tqdm>=4.66.0
+python-dotenv>=1.0.0
+
+# Optional: For better performance
+# xformers>=0.0.22  # Memory efficient attention

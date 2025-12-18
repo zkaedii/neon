@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  text-to-video-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: text-to-video-app
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./outputs:/app/outputs
+      - ./temp:/app/temp
+    environment:
+      - DEBUG_MODE=${DEBUG_MODE:-false}
+      - OUTPUT_DIR=/app/outputs
+      - TEMP_DIR=/app/temp
+      - PORT=7860
+      - MAX_QUEUE_SIZE=50
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:7860')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Development service with hot reload
+  text-to-video-app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    container_name: text-to-video-app-dev
+    ports:
+      - "7860:7860"
+    volumes:
+      - .:/app
+      - ./outputs:/app/outputs
+      - ./temp:/app/temp
+    environment:
+      - DEBUG_MODE=true
+      - OUTPUT_DIR=/app/outputs
+      - TEMP_DIR=/app/temp
+      - PORT=7860
+    command: python app.py
+    profiles:
+      - dev
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

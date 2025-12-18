@@ -1,0 +1,7 @@
+[bandit]
+exclude_dirs = tests,test_,venv,.venv,__pycache__
+
+skips = B101,B601
+
+# Security test configuration
+tests = B201,B301,B401,B501,B601

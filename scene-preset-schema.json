@@ -1,0 +1,448 @@
+{
+  "$schema": "led-scene-preset/v1.0",
+  
+  "metadata": {
+    "name": "NEON TOKYO",
+    "id": "neon-tokyo-001",
+    "author": "zkaedii",
+    "version": "1.0.0",
+    "created": "2025-01-15T00:00:00Z",
+    "description": "Rain-soaked cyberpunk streets with dense crowds and racing traffic",
+    "tags": ["cyberpunk", "city", "night", "rain", "neon"],
+    "bpm_range": [90, 140],
+    "mood": "energetic",
+    "duration": null,
+    "loop": true
+  },
+
+  "canvas": {
+    "width": 640,
+    "height": 360,
+    "background": "#050508"
+  },
+
+  "color_palette": {
+    "primary": "#00f5ff",
+    "secondary": "#ff00ff",
+    "accent": "#ff6b00",
+    "highlight": "#39ff14",
+    "shadow": "#0a0a12",
+    "neon": ["#00f5ff", "#ff00ff", "#ff6b00", "#39ff14", "#ff0055"]
+  },
+
+  "environment": {
+    "sky": {
+      "type": "gradient",
+      "gradient_top": "#0a0510",
+      "gradient_bottom": "#1a0825",
+      "stars": {
+        "enabled": true,
+        "count": 80,
+        "twinkle_speed": 0.05,
+        "audio_target": "high",
+        "audio_intensity": 0.5
+      },
+      "clouds": {
+        "enabled": true,
+        "count": 5,
+        "speed": 0.2,
+        "opacity": 0.15,
+        "color": "#2a1035"
+      },
+      "moon": null,
+      "rain": {
+        "enabled": true,
+        "intensity": 0.7,
+        "speed": 8,
+        "angle": 5,
+        "color": "rgba(100, 150, 255, 0.3)",
+        "splash": true,
+        "audio_target": "mid",
+        "audio_modulates": "intensity"
+      }
+    },
+
+    "midground": {
+      "buildings": [
+        {
+          "x": 0, "width": 70, "height": 200,
+          "style": "corporate",
+          "windows": { "rows": 15, "cols": 4, "glow": true },
+          "antenna": true,
+          "audio_target": "bass",
+          "audio_effect": "height_pulse"
+        },
+        {
+          "x": 80, "width": 50, "height": 280,
+          "style": "residential",
+          "windows": { "rows": 20, "cols": 3, "glow": true },
+          "antenna": false,
+          "neon_sign": { "text": "ホテル", "color": "#ff00ff", "blink": 0.5 }
+        },
+        {
+          "x": 140, "width": 90, "height": 180,
+          "style": "commercial",
+          "windows": { "rows": 12, "cols": 6, "glow": true },
+          "billboard": {
+            "y": 50,
+            "width": 80,
+            "height": 40,
+            "content": "animated",
+            "frames": ["AD_01", "AD_02", "AD_03"],
+            "frame_rate": 2
+          }
+        },
+        {
+          "x": 240, "width": 60, "height": 320,
+          "style": "skyscraper",
+          "windows": { "rows": 25, "cols": 4, "glow": true },
+          "spire": true,
+          "beacon": { "color": "#ff0000", "blink": 1.0 }
+        },
+        {
+          "x": 310, "width": 100, "height": 150,
+          "style": "commercial",
+          "windows": { "rows": 10, "cols": 8, "glow": true },
+          "neon_sign": { "text": "CLUB", "color": "#00f5ff", "blink": 0 },
+          "entrance": { "y": 140, "width": 30, "glow_color": "#ff00ff" }
+        },
+        {
+          "x": 420, "width": 55, "height": 260,
+          "style": "residential",
+          "windows": { "rows": 18, "cols": 3, "glow": true }
+        },
+        {
+          "x": 485, "width": 80, "height": 190,
+          "style": "corporate",
+          "windows": { "rows": 14, "cols": 5, "glow": true },
+          "rooftop": { "type": "helipad", "light_color": "#39ff14" }
+        },
+        {
+          "x": 575, "width": 65, "height": 240,
+          "style": "mixed",
+          "windows": { "rows": 17, "cols": 4, "glow": true },
+          "fire_escape": true
+        }
+      ],
+      "structures": [
+        {
+          "type": "elevated_train",
+          "y": 120,
+          "speed": 3,
+          "frequency": 8,
+          "color": "#444",
+          "lights": "#ffff00",
+          "audio_target": "bass",
+          "audio_effect": "speed"
+        },
+        {
+          "type": "power_lines",
+          "y": 100,
+          "sag": 10,
+          "spark_chance": 0.01
+        }
+      ]
+    },
+
+    "ground": {
+      "road": {
+        "y": 280,
+        "height": 80,
+        "lanes": 4,
+        "color": "#1a1a1a",
+        "wet": true,
+        "reflections": {
+          "enabled": true,
+          "intensity": 0.6,
+          "blur": 2
+        },
+        "markings": {
+          "type": "dashed",
+          "color": "#ffff00",
+          "width": 3,
+          "dash": 30,
+          "gap": 20,
+          "audio_target": "bass",
+          "audio_effect": "brightness"
+        }
+      },
+      "sidewalk": {
+        "y": 250,
+        "height": 30,
+        "color": "#2a2a2a",
+        "tiles": true,
+        "puddles": {
+          "count": 8,
+          "reflective": true
+        }
+      },
+      "crosswalk": {
+        "x": 300,
+        "width": 60,
+        "stripes": 8,
+        "color": "#ffffff",
+        "glow": true
+      }
+    }
+  },
+
+  "dynamic_objects": {
+    "people": {
+      "count": 35,
+      "spawn_zones": [
+        { "x": [0, 640], "y": [245, 275], "density": 0.8 },
+        { "x": [280, 360], "y": [255, 265], "density": 1.0, "type": "crowd" }
+      ],
+      "behaviors": ["walk", "stand", "dance", "phone"],
+      "behavior_weights": [0.5, 0.2, 0.2, 0.1],
+      "speed_range": [0.5, 2.0],
+      "size_range": [25, 45],
+      "colors": {
+        "hair": ["#000", "#222", "#553311", "#ff00ff", "#00f5ff"],
+        "skin": ["#8d5524", "#c68642", "#e0ac69", "#f1c27d", "#ffdbac"],
+        "clothes": ["#111", "#222", "#333", "#ff0055", "#00f5ff", "#ff00ff"]
+      },
+      "accessories": {
+        "umbrella": { "chance": 0.4, "colors": ["#111", "#ff0055", "#00f5ff"] },
+        "mask": { "chance": 0.3, "glow": true },
+        "headphones": { "chance": 0.2 }
+      },
+      "animation": {
+        "walk_cycle": 0.15,
+        "bounce_amplitude": 3,
+        "arm_swing": 5
+      },
+      "audio_reactions": {
+        "bass": { "target": "bounce", "intensity": 1.5 },
+        "mid": { "target": "speed", "intensity": 0.3 },
+        "high": { "target": "arm_raise_chance", "intensity": 0.5 }
+      }
+    },
+
+    "vehicles": {
+      "cars": {
+        "count": 12,
+        "lanes": [
+          { "y": 290, "direction": 1, "speed_base": 3 },
+          { "y": 310, "direction": 1, "speed_base": 4 },
+          { "y": 330, "direction": -1, "speed_base": 3.5 },
+          { "y": 350, "direction": -1, "speed_base": 4.5 }
+        ],
+        "types": [
+          { "name": "sedan", "width": 50, "height": 22, "weight": 0.4 },
+          { "name": "sports", "width": 55, "height": 18, "weight": 0.2 },
+          { "name": "suv", "width": 60, "height": 28, "weight": 0.2 },
+          { "name": "taxi", "width": 50, "height": 22, "weight": 0.15, "color": "#ffff00" },
+          { "name": "police", "width": 55, "height": 24, "weight": 0.05, "lights": true }
+        ],
+        "colors": ["#111", "#222", "#333", "#880000", "#000088", "#ffffff"],
+        "features": {
+          "headlights": { "enabled": true, "beam_length": 60, "color": "#ffffcc" },
+          "taillights": { "enabled": true, "color": "#ff0000", "brake_bright": 1.5 },
+          "reflections": { "enabled": true, "road_wet": true },
+          "window_tint": 0.7
+        },
+        "audio_reactions": {
+          "bass": { "target": "speed", "intensity": 0.5 },
+          "mid": { "target": "headlight_flicker", "intensity": 0.2 }
+        }
+      },
+      "motorcycles": {
+        "count": 4,
+        "speed_range": [5, 8],
+        "color": "#ff6b00",
+        "trail": { "enabled": true, "color": "#ff6b00", "length": 30 }
+      },
+      "buses": {
+        "count": 2,
+        "width": 100,
+        "height": 35,
+        "color": "#006633",
+        "interior_lit": true,
+        "ad_panel": true
+      }
+    },
+
+    "particles": {
+      "rain_splashes": {
+        "type": "splash",
+        "emit_on": "rain_hit_ground",
+        "lifetime": 0.2,
+        "size": 3,
+        "color": "rgba(150, 180, 255, 0.5)"
+      },
+      "neon_flicker": {
+        "type": "glow_pulse",
+        "sources": "neon_signs",
+        "frequency": 0.1,
+        "intensity_range": [0.7, 1.0]
+      },
+      "steam": {
+        "type": "rise",
+        "spawn_points": [[100, 280], [400, 280], [550, 280]],
+        "emit_rate": 0.5,
+        "lifetime": 3,
+        "size_range": [10, 30],
+        "color": "rgba(200, 200, 200, 0.2)",
+        "rise_speed": 1
+      },
+      "sparks": {
+        "type": "burst",
+        "trigger": "power_line_spark",
+        "count": 20,
+        "lifetime": 0.5,
+        "color": "#ffff00",
+        "gravity": 2
+      }
+    }
+  },
+
+  "lighting": {
+    "ambient": {
+      "color": "#0a0515",
+      "intensity": 0.3
+    },
+    "fog": {
+      "enabled": true,
+      "color": "#1a0825",
+      "density": 0.15,
+      "height": 100,
+      "audio_target": "bass",
+      "audio_effect": "density"
+    },
+    "sources": {
+      "streetlights": {
+        "positions": [50, 150, 250, 350, 450, 550],
+        "y": 240,
+        "height": 40,
+        "color": "#ffcc66",
+        "radius": 60,
+        "flicker": 0.02
+      },
+      "neon_signs": [
+        { "x": 85, "y": 100, "text": "ホテル", "color": "#ff00ff", "glow": 20 },
+        { "x": 320, "y": 130, "text": "CLUB", "color": "#00f5ff", "glow": 25 },
+        { "x": 500, "y": 80, "text": "24H", "color": "#ff6b00", "glow": 15 },
+        { "x": 200, "y": 160, "text": "酒", "color": "#ff0055", "glow": 18 }
+      ],
+      "spotlights": [
+        {
+          "x": 320, "y": 0,
+          "target": { "x": 320, "y": 360 },
+          "color": "#ff00ff",
+          "width": 40,
+          "sweep": { "enabled": true, "range": 100, "speed": 0.02 },
+          "audio_target": "high",
+          "audio_effect": "sweep_speed"
+        }
+      ],
+      "window_glow": {
+        "base_color": "#ffcc66",
+        "variance": 20,
+        "flicker_chance": 0.001,
+        "audio_target": "mid",
+        "audio_effect": "brightness"
+      }
+    },
+    "reflections": {
+      "wet_road": {
+        "enabled": true,
+        "intensity": 0.5,
+        "distortion": 0.3,
+        "sources": ["neon_signs", "streetlights", "car_lights"]
+      }
+    }
+  },
+
+  "audio_mapping": {
+    "frequency_bands": {
+      "sub_bass": { "range": [20, 60], "smoothing": 0.8 },
+      "bass": { "range": [60, 250], "smoothing": 0.7 },
+      "low_mid": { "range": [250, 500], "smoothing": 0.6 },
+      "mid": { "range": [500, 2000], "smoothing": 0.5 },
+      "high_mid": { "range": [2000, 6000], "smoothing": 0.4 },
+      "high": { "range": [6000, 20000], "smoothing": 0.3 }
+    },
+    "global_targets": {
+      "brightness": {
+        "source": "bass",
+        "min": 1.0,
+        "max": 1.4,
+        "curve": "exponential"
+      },
+      "color_shift": {
+        "source": "high",
+        "hue_range": [-10, 10],
+        "curve": "linear"
+      },
+      "time_scale": {
+        "source": "mid",
+        "min": 0.8,
+        "max": 1.2,
+        "curve": "sigmoid"
+      }
+    },
+    "beat_detection": {
+      "enabled": true,
+      "threshold": 0.7,
+      "on_beat": [
+        { "action": "flash", "targets": ["neon_signs"], "intensity": 1.5, "duration": 0.1 },
+        { "action": "spawn", "target": "spark_burst", "chance": 0.3 },
+        { "action": "pulse", "targets": ["buildings"], "scale": 1.02, "duration": 0.15 }
+      ]
+    }
+  },
+
+  "animation": {
+    "frame_rate": 60,
+    "time_scale": 1.0,
+    "global_phase": 0,
+    "transitions": {
+      "in": { "type": "fade", "duration": 1.0 },
+      "out": { "type": "fade", "duration": 0.5 }
+    },
+    "camera": {
+      "shake": {
+        "enabled": true,
+        "audio_target": "sub_bass",
+        "intensity": 2,
+        "frequency": 0.1
+      },
+      "drift": {
+        "enabled": false,
+        "speed": 0.5,
+        "range": 20
+      }
+    }
+  },
+
+  "post_processing": {
+    "bloom": {
+      "enabled": true,
+      "threshold": 0.6,
+      "intensity": 0.8,
+      "radius": 10
+    },
+    "chromatic_aberration": {
+      "enabled": true,
+      "intensity": 0.003,
+      "audio_target": "bass",
+      "audio_multiplier": 2
+    },
+    "scanlines": {
+      "enabled": true,
+      "opacity": 0.05,
+      "speed": 0
+    },
+    "vignette": {
+      "enabled": true,
+      "intensity": 0.3,
+      "radius": 0.8
+    },
+    "color_grading": {
+      "saturation": 1.2,
+      "contrast": 1.1,
+      "temperature": -5
+    }
+  }
+}

@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # LED Scene Visualizer (Static HTML)
+  led-visualizer:
+    image: nginx:alpine
+    container_name: neon-tokyo-led
+    ports:
+      - "8080:80"
+    volumes:
+      - ./remixed-badc0925.html:/usr/share/nginx/html/index.html:ro
+      - ./scene-preset-schema.json:/usr/share/nginx/html/scene-preset-schema.json:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
+    networks:
+      - neon-tokyo-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Text-to-Video Generation Service
+  text-to-video:
+    build:
+      context: ./text-to-video-app
+      dockerfile: Dockerfile
+      target: production
+    container_name: neon-tokyo-video
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./text-to-video-app/outputs:/app/outputs
+      - ./text-to-video-app/temp:/app/temp
+    environment:
+      - DEBUG_MODE=false
+      - OUTPUT_DIR=/app/outputs
+      - TEMP_DIR=/app/temp
+      - PORT=7860
+      - MAX_QUEUE_SIZE=50
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    networks:
+      - neon-tokyo-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:7860')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - redis
+
+  # Redis for caching and job queue
+  redis:
+    image: redis:7-alpine
+    container_name: neon-tokyo-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - neon-tokyo-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+
+  # Monitoring & Logging
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: neon-tokyo-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    restart: unless-stopped
+    networks:
+      - neon-tokyo-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: neon-tokyo-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    restart: unless-stopped
+    networks:
+      - neon-tokyo-network
+    depends_on:
+      - prometheus
+
+networks:
+  neon-tokyo-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  prometheus-data:
+  grafana-data:

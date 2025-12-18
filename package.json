@@ -1,0 +1,75 @@
+{
+  "name": "neon-tokyo-workspace",
+  "version": "2.0.0",
+  "description": "Neon Tokyo - Advanced Cyberpunk LED Scene Visualizer & Text-to-Video Generation Platform",
+  "private": true,
+  "workspaces": [
+    "text-to-video-app",
+    "led-scene-visualizer"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:led\" \"npm run dev:video\"",
+    "dev:led": "live-server --port=8080 --open=/remixed-badc0925.html",
+    "dev:video": "cd text-to-video-app && python app.py",
+    "build": "npm run build:led && npm run build:video",
+    "build:led": "npm run lint:led && npm run format:led",
+    "build:video": "cd text-to-video-app && make install",
+    "lint": "npm run lint:led && npm run lint:video",
+    "lint:led": "eslint '**/*.html' '**/*.js' --fix",
+    "lint:video": "cd text-to-video-app && make lint",
+    "format": "npm run format:led && npm run format:video",
+    "format:led": "prettier --write '**/*.{html,js,json,css}'",
+    "format:video": "cd text-to-video-app && make format",
+    "test": "npm run test:video",
+    "test:video": "cd text-to-video-app && make test",
+    "test:coverage": "cd text-to-video-app && make test-cov",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "deploy:staging": "npm run build && npm run test && ./scripts/deploy-staging.sh",
+    "deploy:production": "npm run build && npm run test && ./scripts/deploy-production.sh",
+    "precommit": "lint-staged",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-html": "^7.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "live-server": "^1.2.2",
+    "prettier": "^3.2.5",
+    "prettier-plugin-html": "^0.1.0"
+  },
+  "lint-staged": {
+    "*.{html,js,json,css}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.py": [
+      "cd text-to-video-app && black --line-length=120",
+      "cd text-to-video-app && isort --profile black"
+    ]
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "cyberpunk",
+    "led",
+    "visualization",
+    "text-to-video",
+    "ai",
+    "neon",
+    "tokyo",
+    "creative"
+  ],
+  "author": "zkaedii <ideakzkaedi@outlook.com>",
+  "license": "MIT"
+}
