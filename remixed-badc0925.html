@@ -2799,100 +2799,104 @@ const led = {
       audioBoosts[col] = 1 + (freqVal / 255) * state.reactivity * 0.8;
     }
 
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        // Enhanced sampling with bilinear interpolation
-        const fx = col * scaleX;
-        const fy = row * scaleY;
-        const x1 = Math.floor(fx);
-        const y1 = Math.floor(fy);
-        const x2 = Math.min(CONFIG.SCENE_WIDTH - 1, x1 + 1);
-        const y2 = Math.min(CONFIG.SCENE_HEIGHT - 1, y1 + 1);
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                // Enhanced sampling with bilinear interpolation
+                const fx = col * scaleX;
+                const fy = row * scaleY;
+                const x1 = Math.floor(fx);
+                const y1 = Math.floor(fy);
+                const x2 = Math.min(CONFIG.SCENE_WIDTH - 1, x1 + 1);
+                const y2 = Math.min(CONFIG.SCENE_HEIGHT - 1, y1 + 1);
 
-        const fracX = fx - x1;
-        const fracY = fy - y1;
+                const fracX = fx - x1;
+                const fracY = fy - y1;
 
-        // Sample 4 pixels for bilinear interpolation
-        const getPixel = (x, y) => {
-          const idx = (y * CONFIG.SCENE_WIDTH + x) * 4;
-          return {
-            r: sceneData[idx] || 0,
-            g: sceneData[idx + 1] || 0,
-            b: sceneData[idx + 2] || 0,
-          };
-        };
+                // Sample 4 pixels for bilinear interpolation
+                const getPixel = (x, y) => {
+                    const idx = (y * CONFIG.SCENE_WIDTH + x) * 4;
+                    return {
+                        r: sceneData[idx] || 0,
+                        g: sceneData[idx + 1] || 0,
+                        b: sceneData[idx + 2] || 0
+                    };
+                };
 
-        const p11 = getPixel(x1, y1);
-        const p21 = getPixel(x2, y1);
-        const p12 = getPixel(x1, y2);
-        const p22 = getPixel(x2, y2);
+                const p11 = getPixel(x1, y1);
+                const p21 = getPixel(x2, y1);
+                const p12 = getPixel(x1, y2);
+                const p22 = getPixel(x2, y2);
 
-        // Bilinear interpolation
-        let r =
-          p11.r * (1 - fracX) * (1 - fracY) +
-          p21.r * fracX * (1 - fracY) +
-          p12.r * (1 - fracX) * fracY +
-          p22.r * fracX * fracY;
-        let g =
-          p11.g * (1 - fracX) * (1 - fracY) +
-          p21.g * fracX * (1 - fracY) +
-          p12.g * (1 - fracX) * fracY +
-          p22.g * fracX * fracY;
-        let b =
-          p11.b * (1 - fracX) * (1 - fracY) +
-          p21.b * fracX * (1 - fracY) +
-          p12.b * (1 - fracX) * fracY +
-          p22.b * fracX * fracY;
+                // Bilinear interpolation
+                let r = p11.r * (1 - fracX) * (1 - fracY) +
+                       p21.r * fracX * (1 - fracY) +
+                       p12.r * (1 - fracX) * fracY +
+                       p22.r * fracX * fracY;
+                let g = p11.g * (1 - fracX) * (1 - fracY) +
+                       p21.g * fracX * (1 - fracY) +
+                       p12.g * (1 - fracX) * fracY +
+                       p22.g * fracX * fracY;
+                let b = p11.b * (1 - fracX) * (1 - fracY) +
+                       p21.b * fracX * (1 - fracY) +
+                       p12.b * (1 - fracX) * fracY +
+                       p22.b * fracX * fracY;
 
-        // Enhanced audio boost with smooth curve
-        const boost = audioBoosts[col];
-        const boostSmooth = Math.pow(boost, 1.2); // Smooth curve
+                // Enhanced audio boost with smooth curve
+                const boost = audioBoosts[col];
+                const boostSmooth = Math.pow(boost, 1.2); // Smooth curve
 
-        r = Math.min(255, r * boostSmooth);
-        g = Math.min(255, g * boostSmooth);
-        b = Math.min(255, b * boostSmooth);
+                r = Math.min(255, r * boostSmooth);
+                g = Math.min(255, g * boostSmooth);
+                b = Math.min(255, b * boostSmooth);
 
-        const x = col * ledW + gap / 2;
-        const y = row * ledH + gap / 2;
-        const lw = ledW - gap;
-        const lh = ledH - gap;
-        const centerX = x + lw / 2;
-        const centerY = y + lh / 2;
+                const x = col * ledW + gap / 2;
+                const y = row * ledH + gap / 2;
+                const lw = ledW - gap;
+                const lh = ledH - gap;
+                const centerX = x + lw / 2;
+                const centerY = y + lh / 2;
 
-        // Enhanced multi-layer glow effect
-        const brightness = (r + g + b) / 3;
-        if (state.glowAmount > 0 && brightness > 100) {
-          const glowIntensity = (brightness / 255) * state.glowAmount;
-          const glowSize = lw * 0.5 * glowIntensity;
+                // Optimized multi-layer glow effect using simple fills instead of gradients
+                const brightness = (r + g + b) / 3;
+                if (state.glowAmount > 0 && brightness > 100) {
+                    const glowIntensity = (brightness / 255) * state.glowAmount;
+                    const glowSize = lw * 0.5 * glowIntensity;
 
-          // Outer glow
-          const outerGrad = ledCtx.createRadialGradient(
-            centerX,
-            centerY,
-            lw * 0.3,
-            centerX,
-            centerY,
-            lw * 0.5 + glowSize
-          );
-          outerGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${0.3 * glowIntensity})`);
-          outerGrad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${0.15 * glowIntensity})`);
-          outerGrad.addColorStop(1, "transparent");
-          ledCtx.fillStyle = outerGrad;
-          ledCtx.fillRect(x - glowSize, y - glowSize, lw + glowSize * 2, lh + glowSize * 2);
+                    // Outer glow using multiple semi-transparent layers
+                    ledCtx.globalAlpha = 0.3 * glowIntensity;
+                    ledCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                    ledCtx.beginPath();
+                    ledCtx.arc(centerX, centerY, lw * 0.5 + glowSize, 0, Math.PI * 2);
+                    ledCtx.fill();
+                    
+                    ledCtx.globalAlpha = 0.15 * glowIntensity;
+                    ledCtx.beginPath();
+                    ledCtx.arc(centerX, centerY, lw * 0.4 + glowSize * 0.7, 0, Math.PI * 2);
+                    ledCtx.fill();
 
-          // Inner glow
-          const innerGrad = ledCtx.createRadialGradient(
-            centerX,
-            centerY,
-            0,
-            centerX,
-            centerY,
-            lw * 0.4
-          );
-          innerGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${0.5 * glowIntensity})`);
-          innerGrad.addColorStop(1, "transparent");
-          ledCtx.fillStyle = innerGrad;
-          ledCtx.fillRect(x - glowSize * 0.5, y - glowSize * 0.5, lw + glowSize, lh + glowSize);
+                    // Inner glow
+                    ledCtx.globalAlpha = 0.5 * glowIntensity;
+                    ledCtx.beginPath();
+                    ledCtx.arc(centerX, centerY, lw * 0.4, 0, Math.PI * 2);
+                    ledCtx.fill();
+                    
+                    ledCtx.globalAlpha = 1.0;
+                }
+
+                // LED pixel with enhanced rendering
+                ledCtx.fillStyle = `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+                utils.drawRoundedRect(ledCtx, x, y, lw, lh, lw * 0.15);
+                ledCtx.fill();
+
+                // Optimized highlight using simple semi-transparent fill
+                if (brightness > 80) {
+                    ledCtx.globalAlpha = 0.2 * (brightness / 255);
+                    ledCtx.fillStyle = 'rgb(255, 255, 255)';
+                    utils.drawRoundedRect(ledCtx, x, y, lw, lh * 0.4, lw * 0.15);
+                    ledCtx.fill();
+                    ledCtx.globalAlpha = 1.0;
+                }
+            }
         }
 
         // LED pixel with enhanced rendering
