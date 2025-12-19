@@ -356,7 +356,6 @@ const utils = {
         // Enhanced context settings for better rendering quality
         ledCtx.imageSmoothingEnabled = true;
         ledCtx.imageSmoothingQuality = 'high';
-        ledCtx.textRenderingOptimization = 'optimizeQuality';
         ledCtx.scale(dpr, dpr);
 
         // Enhanced scene canvas with better quality
@@ -364,7 +363,6 @@ const utils = {
         sceneCanvas.height = CONFIG.SCENE_HEIGHT;
         sceneCtx.imageSmoothingEnabled = true;
         sceneCtx.imageSmoothingQuality = 'high';
-        sceneCtx.textRenderingOptimization = 'optimizeQuality';
         sceneCtx.willReadFrequently = false; // Optimize for write operations
 
         // Initialize post-processing buffers with enhanced settings
