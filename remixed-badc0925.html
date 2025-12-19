@@ -356,7 +356,6 @@ const utils = {
         // Enhanced context settings for better rendering quality
         ledCtx.imageSmoothingEnabled = true;
         ledCtx.imageSmoothingQuality = 'high';
-        ledCtx.textRenderingOptimization = 'optimizeQuality';
         ledCtx.scale(dpr, dpr);
 
         // Enhanced scene canvas with better quality
@@ -364,7 +363,6 @@ const utils = {
         sceneCanvas.height = CONFIG.SCENE_HEIGHT;
         sceneCtx.imageSmoothingEnabled = true;
         sceneCtx.imageSmoothingQuality = 'high';
-        sceneCtx.textRenderingOptimization = 'optimizeQuality';
         sceneCtx.willReadFrequently = false; // Optimize for write operations
 
         // Initialize post-processing buffers with enhanced settings
@@ -2018,37 +2016,60 @@ const scene = {
 
         bloomCtx.putImageData(imageData, 0, 0);
 
-        // Apply Gaussian blur simulation (multi-pass box blur)
+        // Apply Gaussian blur simulation using a separable box blur
+        const blurData = bloomCtx.getImageData(0, 0, CONFIG.SCENE_WIDTH, CONFIG.SCENE_HEIGHT);
+        const pixels = blurData.data;
+        const width = CONFIG.SCENE_WIDTH;
+        const height = CONFIG.SCENE_HEIGHT;
+        const radius = 2;
+        const temp = new Uint8ClampedArray(pixels.length);
+
+        // Perform a small number of separable blur passes for a stronger effect
         for (let pass = 0; pass < 2; pass++) {
-            const blurData = bloomCtx.getImageData(0, 0, CONFIG.SCENE_WIDTH, CONFIG.SCENE_HEIGHT);
-            const blurPixels = blurData.data;
-            const newData = new Uint8ClampedArray(blurPixels);
-
-            const radius = 2;
-            for (let y = radius; y < CONFIG.SCENE_HEIGHT - radius; y++) {
-                for (let x = radius; x < CONFIG.SCENE_WIDTH - radius; x++) {
+            // Horizontal blur: pixels -> temp
+            for (let y = 0; y < height; y++) {
+                const rowOffset = y * width * 4;
+                for (let x = 0; x < width; x++) {
                     let r = 0, g = 0, b = 0, count = 0;
-
-                    for (let dy = -radius; dy <= radius; dy++) {
-                        for (let dx = -radius; dx <= radius; dx++) {
-                            const idx = ((y + dy) * CONFIG.SCENE_WIDTH + (x + dx)) * 4;
-                            r += blurPixels[idx];
-                            g += blurPixels[idx + 1];
-                            b += blurPixels[idx + 2];
-                            count++;
-                        }
+                    for (let dx = -radius; dx <= radius; dx++) {
+                        const sx = Math.min(width - 1, Math.max(0, x + dx));
+                        const idx = rowOffset + sx * 4;
+                        r += pixels[idx];
+                        g += pixels[idx + 1];
+                        b += pixels[idx + 2];
+                        count++;
                     }
-
-                    const idx = (y * CONFIG.SCENE_WIDTH + x) * 4;
-                    newData[idx] = r / count;
-                    newData[idx + 1] = g / count;
-                    newData[idx + 2] = b / count;
+                    const dstIdx = rowOffset + x * 4;
+                    temp[dstIdx] = r / count;
+                    temp[dstIdx + 1] = g / count;
+                    temp[dstIdx + 2] = b / count;
+                    temp[dstIdx + 3] = pixels[dstIdx + 3];
                 }
             }
 
-            blurData.data.set(newData);
-            bloomCtx.putImageData(blurData, 0, 0);
+            // Vertical blur: temp -> pixels
+            for (let x = 0; x < width; x++) {
+                const colOffset = x * 4;
+                for (let y = 0; y < height; y++) {
+                    let r = 0, g = 0, b = 0, count = 0;
+                    for (let dy = -radius; dy <= radius; dy++) {
+                        const sy = Math.min(height - 1, Math.max(0, y + dy));
+                        const idx = sy * width * 4 + colOffset;
+                        r += temp[idx];
+                        g += temp[idx + 1];
+                        b += temp[idx + 2];
+                        count++;
+                    }
+                    const dstIdx = y * width * 4 + colOffset;
+                    pixels[dstIdx] = r / count;
+                    pixels[dstIdx + 1] = g / count;
+                    pixels[dstIdx + 2] = b / count;
+                    pixels[dstIdx + 3] = temp[dstIdx + 3];
+                }
+            }
         }
+
+        bloomCtx.putImageData(blurData, 0, 0);
 
         // Enhanced blend with multiple layers
         sceneCtx.globalCompositeOperation = 'screen';
@@ -2561,6 +2582,16 @@ const led = {
         const scaleX = CONFIG.SCENE_WIDTH / cols;
         const scaleY = CONFIG.SCENE_HEIGHT / rows;
 
+        // Define getPixel function once outside the loop
+        const getPixel = (x, y) => {
+            const idx = (y * CONFIG.SCENE_WIDTH + x) * 4;
+            return {
+                r: sceneData[idx] || 0,
+                g: sceneData[idx + 1] || 0,
+                b: sceneData[idx + 2] || 0
+            };
+        };
+
         // Pre-calculate audio boost values for performance
         const audioBoosts = new Array(cols);
         for (let col = 0; col < cols; col++) {
@@ -2583,15 +2614,6 @@ const led = {
                 const fracY = fy - y1;
 
                 // Sample 4 pixels for bilinear interpolation
-                const getPixel = (x, y) => {
-                    const idx = (y * CONFIG.SCENE_WIDTH + x) * 4;
-                    return {
-                        r: sceneData[idx] || 0,
-                        g: sceneData[idx + 1] || 0,
-                        b: sceneData[idx + 2] || 0
-                    };
-                };
-
                 const p11 = getPixel(x1, y1);
                 const p21 = getPixel(x2, y1);
                 const p12 = getPixel(x1, y2);
@@ -2623,35 +2645,17 @@ const led = {
                 const y = row * ledH + gap / 2;
                 const lw = ledW - gap;
                 const lh = ledH - gap;
-                const centerX = x + lw / 2;
-                const centerY = y + lh / 2;
 
-                // Enhanced multi-layer glow effect
+                // Calculate brightness once
                 const brightness = (r + g + b) / 3;
+
+                // Use canvas shadow for glow effect (GPU-accelerated, much faster than gradients)
                 if (state.glowAmount > 0 && brightness > 100) {
                     const glowIntensity = (brightness / 255) * state.glowAmount;
-                    const glowSize = lw * 0.5 * glowIntensity;
-
-                    // Outer glow
-                    const outerGrad = ledCtx.createRadialGradient(
-                        centerX, centerY, lw * 0.3,
-                        centerX, centerY, lw * 0.5 + glowSize
-                    );
-                    outerGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${0.3 * glowIntensity})`);
-                    outerGrad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${0.15 * glowIntensity})`);
-                    outerGrad.addColorStop(1, 'transparent');
-                    ledCtx.fillStyle = outerGrad;
-                    ledCtx.fillRect(x - glowSize, y - glowSize, lw + glowSize * 2, lh + glowSize * 2);
-
-                    // Inner glow
-                    const innerGrad = ledCtx.createRadialGradient(
-                        centerX, centerY, 0,
-                        centerX, centerY, lw * 0.4
-                    );
-                    innerGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${0.5 * glowIntensity})`);
-                    innerGrad.addColorStop(1, 'transparent');
-                    ledCtx.fillStyle = innerGrad;
-                    ledCtx.fillRect(x - glowSize * 0.5, y - glowSize * 0.5, lw + glowSize, lh + glowSize);
+                    ledCtx.shadowBlur = lw * 0.8 * glowIntensity;
+                    ledCtx.shadowColor = `rgb(${r}, ${g}, ${b})`;
+                } else {
+                    ledCtx.shadowBlur = 0;
                 }
 
                 // LED pixel with enhanced rendering
@@ -2659,12 +2663,12 @@ const led = {
                 utils.drawRoundedRect(ledCtx, x, y, lw, lh, lw * 0.15);
                 ledCtx.fill();
 
-                // Enhanced highlight with gradient
+                // Reset shadow for highlight
+                ledCtx.shadowBlur = 0;
+
+                // Enhanced highlight using simple alpha blending
                 if (brightness > 80) {
-                    const highlightGrad = ledCtx.createLinearGradient(x, y, x, y + lh * 0.4);
-                    highlightGrad.addColorStop(0, `rgba(255, 255, 255, ${0.2 * (brightness / 255)})`);
-                    highlightGrad.addColorStop(1, 'transparent');
-                    ledCtx.fillStyle = highlightGrad;
+                    ledCtx.fillStyle = `rgba(255, 255, 255, ${0.2 * (brightness / 255)})`;
                     utils.drawRoundedRect(ledCtx, x, y, lw, lh * 0.4, lw * 0.15);
                     ledCtx.fill();
                 }
@@ -3068,16 +3072,19 @@ const ui = {
         });
 
         ledCanvas.addEventListener('mousemove', e => {
-            if (state.isDragging && state.draggedImage) {
-                const rect = ledCanvas.getBoundingClientRect();
-                const mouseX = (e.clientX - rect.left) / rect.width * CONFIG.SCENE_WIDTH;
-                const mouseY = (e.clientY - rect.top) / rect.height * CONFIG.SCENE_HEIGHT;
-
-                state.draggedImage.baseX = mouseX;
-                state.draggedImage.baseY = mouseY;
-                state.draggedImage.x = mouseX;
-                state.draggedImage.y = mouseY;
+            // Early return if not dragging to avoid unnecessary calculations
+            if (!state.isDragging || !state.draggedImage) {
+                return;
             }
+
+            const rect = ledCanvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left) / rect.width * CONFIG.SCENE_WIDTH;
+            const mouseY = (e.clientY - rect.top) / rect.height * CONFIG.SCENE_HEIGHT;
+
+            state.draggedImage.baseX = mouseX;
+            state.draggedImage.baseY = mouseY;
+            state.draggedImage.x = mouseX;
+            state.draggedImage.y = mouseY;
         });
 
         ledCanvas.addEventListener('mouseup', () => {
