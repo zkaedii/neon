@@ -3106,7 +3106,7 @@ const ui = {
         });
 
         ledCanvas.addEventListener('mouseup', () => {
-            // Always remove mousemove listener when dragging stops
+            // Always remove mousemove listener to prevent any memory leaks
             ledCanvas.removeEventListener('mousemove', handleMouseMove);
             state.isDragging = false;
             state.draggedImage = null;
