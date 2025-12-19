@@ -3070,6 +3070,18 @@ const ui = {
             this.closeAudioPanel();
         });
 
+        // Handler for mousemove event - only attached when dragging
+        const handleMouseMove = (e) => {
+            const rect = ledCanvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left) / rect.width * CONFIG.SCENE_WIDTH;
+            const mouseY = (e.clientY - rect.top) / rect.height * CONFIG.SCENE_HEIGHT;
+
+            state.draggedImage.baseX = mouseX;
+            state.draggedImage.baseY = mouseY;
+            state.draggedImage.x = mouseX;
+            state.draggedImage.y = mouseY;
+        };
+
         ledCanvas.addEventListener('mousedown', e => {
             const rect = ledCanvas.getBoundingClientRect();
             const mouseX = (e.clientX - rect.left) / rect.width * CONFIG.SCENE_WIDTH;
@@ -3084,25 +3096,18 @@ const ui = {
                 if (dist < 100) {
                     state.draggedImage = img;
                     state.isDragging = true;
+                    // Add mousemove listener only when dragging starts
+                    ledCanvas.addEventListener('mousemove', handleMouseMove);
                     break;
                 }
             }
         });
 
-        ledCanvas.addEventListener('mousemove', e => {
-            if (state.isDragging && state.draggedImage) {
-                const rect = ledCanvas.getBoundingClientRect();
-                const mouseX = (e.clientX - rect.left) / rect.width * CONFIG.SCENE_WIDTH;
-                const mouseY = (e.clientY - rect.top) / rect.height * CONFIG.SCENE_HEIGHT;
-
-                state.draggedImage.baseX = mouseX;
-                state.draggedImage.baseY = mouseY;
-                state.draggedImage.x = mouseX;
-                state.draggedImage.y = mouseY;
-            }
-        });
-
         ledCanvas.addEventListener('mouseup', () => {
+            if (state.isDragging) {
+                // Remove mousemove listener when dragging stops
+                ledCanvas.removeEventListener('mousemove', handleMouseMove);
+            }
             state.isDragging = false;
             state.draggedImage = null;
         });
