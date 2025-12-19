@@ -402,6 +402,79 @@ const utils = {
       previousFrameCtx.imageSmoothingEnabled = true;
       previousFrameCtx.imageSmoothingQuality = "high";
     }
+    drawRoundedRect(ctx, x, y, w, h, radius) {
+        if (ctx.roundRect) {
+            ctx.roundRect(x, y, w, h, radius);
+        } else {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + w - radius, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+            ctx.lineTo(x + w, y + h - radius);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+            ctx.lineTo(x + radius, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+    },
+
+    resizeCanvas() {
+        const rect = ledCanvas.parentElement.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for performance
+
+        // Enhanced LED canvas with better quality settings
+        ledCanvas.width = rect.width * dpr;
+        ledCanvas.height = rect.height * dpr;
+        ledCanvas.style.width = rect.width + 'px';
+        ledCanvas.style.height = rect.height + 'px';
+
+        // Enhanced context settings for better rendering quality
+        ledCtx.imageSmoothingEnabled = true;
+        ledCtx.imageSmoothingQuality = 'high';
+        ledCtx.scale(dpr, dpr);
+
+        // Enhanced scene canvas with better quality
+        sceneCanvas.width = CONFIG.SCENE_WIDTH;
+        sceneCanvas.height = CONFIG.SCENE_HEIGHT;
+        sceneCtx.imageSmoothingEnabled = true;
+        sceneCtx.imageSmoothingQuality = 'high';
+        sceneCtx.willReadFrequently = false; // Optimize for write operations
+
+        // Initialize post-processing buffers with enhanced settings
+        if (!postProcessCanvas) {
+            postProcessCanvas = document.createElement('canvas');
+            postProcessCanvas.width = CONFIG.SCENE_WIDTH;
+            postProcessCanvas.height = CONFIG.SCENE_HEIGHT;
+            postProcessCtx = postProcessCanvas.getContext('2d', {
+                alpha: true,
+                willReadFrequently: true,
+                desynchronized: false
+            });
+            postProcessCtx.imageSmoothingEnabled = true;
+            postProcessCtx.imageSmoothingQuality = 'high';
+
+            bloomCanvas = document.createElement('canvas');
+            bloomCanvas.width = CONFIG.SCENE_WIDTH;
+            bloomCanvas.height = CONFIG.SCENE_HEIGHT;
+            bloomCtx = bloomCanvas.getContext('2d', {
+                alpha: true,
+                willReadFrequently: true
+            });
+            bloomCtx.imageSmoothingEnabled = true;
+            bloomCtx.imageSmoothingQuality = 'high';
+
+            previousFrameCanvas = document.createElement('canvas');
+            previousFrameCanvas.width = CONFIG.SCENE_WIDTH;
+            previousFrameCanvas.height = CONFIG.SCENE_HEIGHT;
+            previousFrameCtx = previousFrameCanvas.getContext('2d', {
+                alpha: true,
+                willReadFrequently: false
+            });
+            previousFrameCtx.imageSmoothingEnabled = true;
+            previousFrameCtx.imageSmoothingQuality = 'high';
+        }
 
     // Initialize WebGL if available with enhanced settings
     if (useWebGL && !gl) {
@@ -3286,6 +3359,52 @@ const ui = {
 
     window.addEventListener("resize", () => utils.resizeCanvas());
   },
+        });
+
+        // Handler for mousemove event - only attached when dragging
+        const handleMouseMove = (e) => {
+            if (!state.draggedImage) return;
+            
+            const rect = ledCanvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left) / rect.width * CONFIG.SCENE_WIDTH;
+            const mouseY = (e.clientY - rect.top) / rect.height * CONFIG.SCENE_HEIGHT;
+
+            state.draggedImage.baseX = mouseX;
+            state.draggedImage.baseY = mouseY;
+            state.draggedImage.x = mouseX;
+            state.draggedImage.y = mouseY;
+        };
+
+        ledCanvas.addEventListener('mousedown', e => {
+            const rect = ledCanvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left) / rect.width * CONFIG.SCENE_WIDTH;
+            const mouseY = (e.clientY - rect.top) / rect.height * CONFIG.SCENE_HEIGHT;
+
+            for (let i = entities.images.length - 1; i >= 0; i--) {
+                const img = entities.images[i];
+                const dx = mouseX - img.x;
+                const dy = mouseY - img.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < 100) {
+                    state.draggedImage = img;
+                    state.isDragging = true;
+                    // Add mousemove listener only when dragging starts
+                    ledCanvas.addEventListener('mousemove', handleMouseMove);
+                    break;
+                }
+            }
+        });
+
+        ledCanvas.addEventListener('mouseup', () => {
+            // Always remove mousemove listener to prevent any memory leaks
+            ledCanvas.removeEventListener('mousemove', handleMouseMove);
+            state.isDragging = false;
+            state.draggedImage = null;
+        });
+
+        window.addEventListener('resize', () => utils.resizeCanvas());
+    }
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
