@@ -179,8 +179,8 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 const CONFIG = {
-  SCENE_WIDTH: 800,
-  SCENE_HEIGHT: 450,
+  SCENE_WIDTH: 640,
+  SCENE_HEIGHT: 360,
   PALETTE: {
     primary: "#00f5ff",
     secondary: "#ff00ff",
@@ -666,23 +666,73 @@ const utils = {
     reader.onload = (e) => {
       try {
         const preset = JSON.parse(e.target.result);
+
+        // Handle new JSON schema format
+        if (preset.canvas) {
+          CONFIG.SCENE_WIDTH = preset.canvas.width || CONFIG.SCENE_WIDTH;
+          CONFIG.SCENE_HEIGHT = preset.canvas.height || CONFIG.SCENE_HEIGHT;
+          utils.resizeCanvas();
+        }
+
+        if (preset.color_palette) {
+          if (preset.color_palette.primary) CONFIG.PALETTE.primary = preset.color_palette.primary;
+          if (preset.color_palette.secondary) CONFIG.PALETTE.secondary = preset.color_palette.secondary;
+          if (preset.color_palette.accent) CONFIG.PALETTE.accent = preset.color_palette.accent;
+          if (preset.color_palette.highlight) CONFIG.PALETTE.highlight = preset.color_palette.highlight;
+          if (preset.color_palette.neon) CONFIG.PALETTE.neon = preset.color_palette.neon;
+        }
+
+        if (preset.environment && preset.environment.sky && preset.environment.sky.rain) {
+          state.rainIntensity = preset.environment.sky.rain.intensity || state.rainIntensity;
+        }
+
+        if (preset.lighting && preset.lighting.fog) {
+          state.fogDensity = preset.lighting.fog.density || state.fogDensity;
+        }
+
+        // Handle legacy format (preset.state)
         if (preset.state) {
           Object.assign(state, preset.state);
-          document.getElementById("pixelSlider").value = state.pixelSize;
-          document.getElementById("pixelValue").textContent = state.pixelSize;
-          document.getElementById("reactSlider").value = state.reactivity * 100;
-          document.getElementById("reactValue").textContent = `${state.reactivity * 100}%`;
-          document.getElementById("rainSlider").value = state.rainIntensity * 100;
-          document.getElementById("rainValue").textContent = `${state.rainIntensity * 100}%`;
-          document.getElementById("glowSlider").value = state.glowAmount * 100;
-          document.getElementById("glowValue").textContent = `${state.glowAmount * 100}%`;
-          document.getElementById("imageSizeSlider").value = state.imageScale * 100;
-          document.getElementById("imageSizeValue").textContent = `${state.imageScale * 100}%`;
-          document.getElementById("moveMode").value = state.imageMoveMode;
-          document.getElementById("displayMode").value = state.imageDisplayMode;
-          document.getElementById("imageLayer").value = state.imageLayer;
-          document.getElementById("blendMode").value = state.imageBlendMode;
         }
+
+        // Update UI sliders
+        const pixelSlider = document.getElementById("pixelSlider");
+        const reactSlider = document.getElementById("reactSlider");
+        const rainSlider = document.getElementById("rainSlider");
+        const glowSlider = document.getElementById("glowSlider");
+        const imageSizeSlider = document.getElementById("imageSizeSlider");
+
+        if (pixelSlider) {
+          pixelSlider.value = state.pixelSize;
+          document.getElementById("pixelValue").textContent = state.pixelSize;
+        }
+        if (reactSlider) {
+          reactSlider.value = state.reactivity * 100;
+          document.getElementById("reactValue").textContent = `${state.reactivity * 100}%`;
+        }
+        if (rainSlider) {
+          rainSlider.value = state.rainIntensity * 100;
+          document.getElementById("rainValue").textContent = `${state.rainIntensity * 100}%`;
+        }
+        if (glowSlider) {
+          glowSlider.value = state.glowAmount * 100;
+          document.getElementById("glowValue").textContent = `${state.glowAmount * 100}%`;
+        }
+        if (imageSizeSlider) {
+          imageSizeSlider.value = state.imageScale * 100;
+          document.getElementById("imageSizeValue").textContent = `${state.imageScale * 100}%`;
+        }
+
+        const moveMode = document.getElementById("moveMode");
+        const displayMode = document.getElementById("displayMode");
+        const imageLayer = document.getElementById("imageLayer");
+        const blendMode = document.getElementById("blendMode");
+
+        if (moveMode) moveMode.value = state.imageMoveMode;
+        if (displayMode) displayMode.value = state.imageDisplayMode;
+        if (imageLayer) imageLayer.value = state.imageLayer;
+        if (blendMode) blendMode.value = state.imageBlendMode;
+
         utils.updateStatus();
       } catch (err) {
         console.error("Failed to load preset:", err);
@@ -690,6 +740,27 @@ const utils = {
       }
     };
     reader.readAsText(file);
+  },
+
+  loadDefaultPreset() {
+    fetch('scene-preset-schema.json')
+      .then(function(response) {
+        if (response.ok) {
+          return response.json();
+        }
+        throw new Error('Failed to fetch preset');
+      })
+      .then(function(preset) {
+        // Create a File-like object from the JSON
+        const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
+        const file = new File([blob], 'scene-preset-schema.json', { type: 'application/json' });
+        utils.loadPreset(file);
+        console.log('Default preset loaded:', (preset.metadata && preset.metadata.name) || 'NEON TOKYO');
+      })
+      .catch(function(err) {
+        console.warn('Could not load default preset:', err);
+        // Continue without preset - not a critical error
+      });
   },
 };
 
@@ -4338,7 +4409,7 @@ const ui = {
         // Handler for mousemove event - only attached when dragging
         const handleMouseMove = (e) => {
             if (!state.draggedImage) return;
-            
+
             const rect = ledCanvas.getBoundingClientRect();
             const mouseX = (e.clientX - rect.left) / rect.width * CONFIG.SCENE_WIDTH;
             const mouseY = (e.clientY - rect.top) / rect.height * CONFIG.SCENE_HEIGHT;
@@ -4464,6 +4535,10 @@ try {
   }
 
   images.updateGallery(); // Initialize empty gallery
+
+  // Load default preset from scene-preset-schema.json
+  utils.loadDefaultPreset();
+
   animate();
 } catch (err) {
   console.error("Initialization error:", err);
