@@ -582,6 +582,19 @@ const utils = {
           state.fogDensity = preset.lighting.fog.density || state.fogDensity;
         }
 
+        // Store preset for scene initialization
+        window.currentPreset = preset;
+
+        // Reinitialize scene with new preset data if scene is already initialized
+        if (scene && typeof scene.init === 'function') {
+          entities.buildings = [];
+          entities.people = [];
+          entities.cars = [];
+          scene.initBuildings();
+          scene.initPeople();
+          scene.initCars();
+        }
+
         // Handle legacy format (preset.state)
         if (preset.state) {
           Object.assign(state, preset.state);
@@ -1888,18 +1901,11 @@ const scene = {
     const hairColors = ["#111", "#222", "#331100", "#ff00ff", "#00f5ff"];
     const clothesColors = ["#111", "#222", "#333", "#ff0055", "#00f5ff", "#ff00ff", "#006633"];
 
-    // Load people count from preset or use default (scaled: 40 → 35 for 640x360)
-    const peopleCount = (window.currentPreset && window.currentPreset.dynamic_objects && window.currentPreset.dynamic_objects.people) 
-      ? window.currentPreset.dynamic_objects.people.count || 35
-      : 35;
-
-    for (let i = 0; i < peopleCount; i++) {
+    for (let i = 0; i < 40; i++) {
       const hasUmbrella = Math.random() < 0.4;
-      // Scaled y position: 320-355 (450px) → 256-284 (360px) = 0.8 scale
-      const groundY = CONFIG.SCENE_HEIGHT - 40; // Road level
       entities.people.push({
         x: Math.random() * CONFIG.SCENE_WIDTH,
-        y: groundY - 30 + Math.random() * 28,
+        y: 320 + Math.random() * 35,
         vx: (Math.random() - 0.5) * 1.5,
         height: 28 + Math.random() * 15,
         behavior: Math.random() < 0.6 ? "walk" : Math.random() < 0.5 ? "stand" : "dance",
@@ -1916,11 +1922,14 @@ const scene = {
   },
 
   initCars() {
+    // Scaled lane positions: 375-435 (450px) → 300-348 (360px) = 0.8 scale
+    // Road is at y: 280 in JSON (360px canvas), lanes should be around 300-340
+    const roadY = CONFIG.SCENE_HEIGHT - 80; // Road starts 80px from bottom
     const lanes = [
-      { y: 375, dir: 1, speed: 2.5 },
-      { y: 395, dir: 1, speed: 3.5 },
-      { y: 415, dir: -1, speed: 3 },
-      { y: 435, dir: -1, speed: 4 },
+      { y: roadY + 20, dir: 1, speed: 2.5 },
+      { y: roadY + 35, dir: 1, speed: 3.5 },
+      { y: roadY + 50, dir: -1, speed: 3 },
+      { y: roadY + 65, dir: -1, speed: 4 },
     ];
 
     const types = [
