@@ -3072,6 +3072,8 @@ const ui = {
 
         // Handler for mousemove event - only attached when dragging
         const handleMouseMove = (e) => {
+            if (!state.draggedImage) return;
+            
             const rect = ledCanvas.getBoundingClientRect();
             const mouseX = (e.clientX - rect.left) / rect.width * CONFIG.SCENE_WIDTH;
             const mouseY = (e.clientY - rect.top) / rect.height * CONFIG.SCENE_HEIGHT;
@@ -3104,10 +3106,8 @@ const ui = {
         });
 
         ledCanvas.addEventListener('mouseup', () => {
-            if (state.isDragging) {
-                // Remove mousemove listener when dragging stops
-                ledCanvas.removeEventListener('mousemove', handleMouseMove);
-            }
+            // Always remove mousemove listener when dragging stops
+            ledCanvas.removeEventListener('mousemove', handleMouseMove);
             state.isDragging = false;
             state.draggedImage = null;
         });
