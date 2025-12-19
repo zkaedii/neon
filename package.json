@@ -15,7 +15,7 @@
     "build:led": "npm run lint:led && npm run format:led",
     "build:video": "cd text-to-video-app && make install",
     "lint": "npm run lint:led && npm run lint:video",
-    "lint:led": "eslint '**/*.html' '**/*.js' --fix",
+    "lint:led": "eslint '**/*.html' --fix",
     "lint:video": "cd text-to-video-app && make lint",
     "format": "npm run format:led && npm run format:video",
     "format:led": "prettier --write '**/*.{html,js,json,css}'",
