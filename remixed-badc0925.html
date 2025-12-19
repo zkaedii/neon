@@ -2618,82 +2618,1092 @@ const scene = {
       return;
     }
 
-    sceneCtx.strokeStyle = `rgba(150, 180, 220, ${0.3 * state.rainIntensity})`;
-    sceneCtx.lineWidth = 1;
+            const audioScale = 1 + smoothedValue * 0.3 * state.reactivity;
 
-    entities.raindrops.forEach((drop) => {
-      sceneCtx.beginPath();
-      sceneCtx.moveTo(drop.x, drop.y);
-      sceneCtx.lineTo(drop.x + 3, drop.y + drop.length);
-      sceneCtx.stroke();
-    });
+            if (isFullscreenMode) {
+                imgObj.baseX = CONFIG.SCENE_WIDTH / 2;
+                imgObj.baseY = CONFIG.SCENE_HEIGHT / 2;
+            }
 
-    // Splashes
-    sceneCtx.strokeStyle = "rgba(150, 180, 220, 0.5)";
-    entities.splashes.forEach((s) => {
-      sceneCtx.globalAlpha = s.alpha;
-      sceneCtx.beginPath();
-      sceneCtx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-      sceneCtx.stroke();
-    });
-    sceneCtx.globalAlpha = 1;
-  },
+            // Skip automatic movement for character when being controlled
+            const isCharacterControlled = imgObj.isCharacter && (state.keys['w'] || state.keys['s'] || state.keys['a'] || state.keys['d'] ||
+                state.keys['arrowup'] || state.keys['arrowdown'] || state.keys['arrowleft'] || state.keys['arrowright']);
 
-  renderParticles() {
-    // Enhanced steam with glow
-    entities.steamParticles.forEach((p) => {
-      const glow = 1 + (state.midAvg / 255) * 0.5 * state.reactivity;
+            if (!isCharacterControlled) {
+                // Apply movement mode
+                this.applyMovement(imgObj, i, isFullscreenMode);
+            }
 
-      // Outer glow
-      const gradient = sceneCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 1.5);
-      gradient.addColorStop(0, `rgba(200, 220, 255, ${p.alpha * 0.6 * glow})`);
-      gradient.addColorStop(0.5, `rgba(180, 200, 220, ${p.alpha * 0.4 * glow})`);
-      gradient.addColorStop(1, "transparent");
-      sceneCtx.fillStyle = gradient;
-      sceneCtx.beginPath();
-      sceneCtx.arc(p.x, p.y, p.size * 1.5, 0, Math.PI * 2);
-      sceneCtx.fill();
+            // Apply audio targets
+            if (map.targets.scale) imgObj.scale *= audioScale;
+            if (map.targets.rotation) imgObj.rotation += smoothedValue * 0.1;
+            if (map.targets.x && !isCharacterControlled) imgObj.x += (smoothedValue - 0.5) * (isFullscreenMode ? 200 : 100);
+            if (map.targets.y && !isCharacterControlled) imgObj.y += (smoothedValue - 0.5) * (isFullscreenMode ? 200 : 100);
+            if (map.targets.alpha) {
+                imgObj.alpha = 0.3 + smoothedValue * 0.7;
+            } else {
+                imgObj.alpha = 0.7 + (state.midAvg / 255) * 0.3 * state.reactivity;
+            }
+            if (map.targets.hue) {
+                imgObj.hueShift = smoothedValue * 360;
+            } else {
+                imgObj.hueShift = 0;
+            }
 
-      // Core
-      sceneCtx.fillStyle = `rgba(220, 240, 255, ${p.alpha * glow})`;
-      sceneCtx.beginPath();
-      sceneCtx.arc(p.x, p.y, p.size * 0.6, 0, Math.PI * 2);
-      sceneCtx.fill();
-    });
+            if (state.beatDetected) imgObj.scale *= 1.15;
+        });
+    },
 
-    // Enhanced sparks with trails
-    entities.sparks.forEach((s) => {
-      const sparkGlow = s.life * (1 + (state.bassAvg / 255) * 0.8);
+    applyMovement(imgObj, index, isFullscreenMode) {
+        const t = state.t;
+        const scale = state.imageScale;
 
-      // Trail
-      if (s.prevX !== undefined && s.prevY !== undefined) {
-        const gradient = sceneCtx.createLinearGradient(s.prevX, s.prevY, s.x, s.y);
-        gradient.addColorStop(0, `rgba(255, 255, 100, ${sparkGlow * 0.3})`);
-        gradient.addColorStop(1, `rgba(255, 255, 100, ${sparkGlow * 0.8})`);
-        sceneCtx.strokeStyle = gradient;
+        switch(state.imageMoveMode) {
+            case 'float':
+                imgObj.x = imgObj.baseX + Math.sin(t * 0.02 + imgObj.phase) * (isFullscreenMode ? 50 : 30);
+                imgObj.y = imgObj.baseY + Math.cos(t * 0.015 + imgObj.phase) * (isFullscreenMode ? 30 : 20);
+                imgObj.scale = scale * (0.9 + Math.sin(t * 0.03 + imgObj.phase) * 0.1);
+                break;
+            case 'bounce':
+                const bounce = Math.max(0, state.bassAvg / 255 - 0.3) * (isFullscreenMode ? 50 : 100) * state.reactivity;
+                imgObj.x = imgObj.baseX;
+                imgObj.y = imgObj.baseY - bounce;
+                imgObj.scale = scale;
+                break;
+            case 'orbit':
+                const angle = t * imgObj.orbitSpeed + imgObj.phase;
+                const radius = isFullscreenMode ? imgObj.orbitRadius * 0.5 : imgObj.orbitRadius;
+                imgObj.x = imgObj.baseX + Math.cos(angle) * radius;
+                imgObj.y = imgObj.baseY + Math.sin(angle) * radius;
+                imgObj.scale = scale;
+                imgObj.rotation = isFullscreenMode ? 0 : angle;
+                break;
+            case 'wave':
+                imgObj.x = imgObj.baseX + Math.sin(t * 0.03 + index * 0.5) * (isFullscreenMode ? 100 : 80);
+                imgObj.y = imgObj.baseY + Math.sin(t * 0.02 + index * 0.3) * 60;
+                imgObj.scale = scale * (1 + Math.sin(t * 0.04 + index) * 0.2);
+                imgObj.rotation = isFullscreenMode ? 0 : Math.sin(t * 0.02 + index) * 0.3;
+                break;
+            case 'spin':
+                imgObj.x = imgObj.baseX;
+                imgObj.y = imgObj.baseY;
+                imgObj.rotation += 0.02;
+                imgObj.scale = scale;
+                break;
+            case 'pulse':
+                imgObj.x = imgObj.baseX;
+                imgObj.y = imgObj.baseY;
+                imgObj.scale = scale * (0.8 + Math.sin(t * 0.1) * 0.2);
+                break;
+        }
+    },
+
+    render() {
+        if (entities.images.length === 0) return;
+
+        switch(state.imageDisplayMode) {
+            case 'fullscreen': this.renderFullscreen(); break;
+            case 'tiled': this.renderTiled(); break;
+            default: this.renderFloating(); break;
+        }
+    },
+
+    renderFullscreen() {
+        entities.images.forEach(imgObj => {
+            sceneCtx.save();
+            this.applyBlendMode(imgObj.blendMode);
+            sceneCtx.globalAlpha = imgObj.alpha;
+
+            // Enhanced image rendering quality
+            sceneCtx.imageSmoothingEnabled = true;
+            sceneCtx.imageSmoothingQuality = 'high';
+
+            const centerX = CONFIG.SCENE_WIDTH / 2;
+            const centerY = CONFIG.SCENE_HEIGHT / 2;
+            sceneCtx.translate(centerX, centerY);
+            sceneCtx.rotate(imgObj.rotation);
+
+            if (imgObj.hueShift !== 0) sceneCtx.filter = `hue-rotate(${imgObj.hueShift}deg)`;
+
+            const imgAspect = imgObj.img.width / imgObj.img.height;
+            const screenAspect = CONFIG.SCENE_WIDTH / CONFIG.SCENE_HEIGHT;
+
+            let drawW, drawH;
+            if (imgAspect > screenAspect) {
+                drawH = CONFIG.SCENE_HEIGHT * imgObj.scale;
+                drawW = drawH * imgAspect;
+            } else {
+                drawW = CONFIG.SCENE_WIDTH * imgObj.scale;
+                drawH = drawW / imgAspect;
+            }
+
+            const offsetX = imgObj.x - imgObj.baseX;
+            const offsetY = imgObj.y - imgObj.baseY;
+
+            sceneCtx.drawImage(imgObj.img, -drawW / 2 + offsetX, -drawH / 2 + offsetY, drawW, drawH);
+            sceneCtx.filter = 'none';
+
+            if (state.beatDetected && state.glowAmount > 0.5) {
+                sceneCtx.shadowColor = CONFIG.PALETTE.primary;
+                sceneCtx.shadowBlur = 40;
+                sceneCtx.drawImage(imgObj.img, -drawW / 2 + offsetX, -drawH / 2 + offsetY, drawW, drawH);
+                sceneCtx.shadowBlur = 0;
+            }
+
+            sceneCtx.restore();
+        });
+    },
+
+    renderTiled() {
+        entities.images.forEach(imgObj => {
+            sceneCtx.save();
+            this.applyBlendMode(imgObj.blendMode);
+            sceneCtx.globalAlpha = imgObj.alpha;
+
+            // Enhanced image rendering quality
+            sceneCtx.imageSmoothingEnabled = true;
+            sceneCtx.imageSmoothingQuality = 'high';
+
+            if (imgObj.hueShift !== 0) sceneCtx.filter = `hue-rotate(${imgObj.hueShift}deg)`;
+
+            const baseTileSize = 150;
+            const tileW = baseTileSize * imgObj.scale;
+            const tileH = tileW * (imgObj.img.height / imgObj.img.width);
+
+            const offsetX = (imgObj.x - imgObj.baseX) % tileW;
+            const offsetY = (imgObj.y - imgObj.baseY) % tileH;
+
+            const numX = Math.ceil(CONFIG.SCENE_WIDTH / tileW) + 2;
+            const numY = Math.ceil(CONFIG.SCENE_HEIGHT / tileH) + 2;
+
+            for (let ty = -1; ty < numY; ty++) {
+                for (let tx = -1; tx < numX; tx++) {
+                    const x = tx * tileW + offsetX;
+                    const y = ty * tileH + offsetY;
+
+                    sceneCtx.save();
+                    sceneCtx.translate(x + tileW / 2, y + tileH / 2);
+                    sceneCtx.rotate(imgObj.rotation);
+                    sceneCtx.drawImage(imgObj.img, -tileW / 2, -tileH / 2, tileW, tileH);
+                    sceneCtx.restore();
+                }
+            }
+
+            sceneCtx.filter = 'none';
+            sceneCtx.restore();
+        });
+    },
+
+    renderFloating() {
+        entities.images.forEach(imgObj => {
+            sceneCtx.save();
+            this.applyBlendMode(imgObj.blendMode);
+            sceneCtx.globalAlpha = imgObj.alpha;
+
+            // Enhanced image rendering quality
+            sceneCtx.imageSmoothingEnabled = true;
+            sceneCtx.imageSmoothingQuality = 'high';
+
+            sceneCtx.translate(imgObj.x, imgObj.y);
+            sceneCtx.rotate(imgObj.rotation);
+            sceneCtx.scale(imgObj.scale, imgObj.scale);
+
+            if (imgObj.hueShift !== 0) sceneCtx.filter = `hue-rotate(${imgObj.hueShift}deg)`;
+
+            const aspectRatio = imgObj.img.width / imgObj.img.height;
+            const maxSize = 200;
+            const drawW = aspectRatio > 1 ? maxSize : maxSize * aspectRatio;
+            const drawH = aspectRatio > 1 ? maxSize / aspectRatio : maxSize;
+
+            sceneCtx.drawImage(imgObj.img, -drawW / 2, -drawH / 2, drawW, drawH);
+            sceneCtx.filter = 'none';
+
+            // Enhanced glow on beat
+            if (state.beatDetected && state.glowAmount > 0.5) {
+                const glowIntensity = 1 + state.bassAvg / 255 * 0.5;
+
+                // Outer glow
+                sceneCtx.shadowColor = CONFIG.PALETTE.primary;
+                sceneCtx.shadowBlur = 50 * glowIntensity;
+                sceneCtx.globalAlpha = 0.6;
+                sceneCtx.drawImage(imgObj.img, -drawW / 2, -drawH / 2, drawW, drawH);
+
+                // Middle glow
+                sceneCtx.shadowBlur = 30 * glowIntensity;
+                sceneCtx.globalAlpha = 0.8;
+                sceneCtx.drawImage(imgObj.img, -drawW / 2, -drawH / 2, drawW, drawH);
+
+                // Core
+                sceneCtx.shadowBlur = 0;
+                sceneCtx.globalAlpha = 1;
+            }
+
+            // Character indicator (pulsing glow)
+            if (imgObj.isCharacter) {
+                const pulse = 1 + Math.sin(state.t * 0.1) * 0.1;
+                sceneCtx.shadowColor = CONFIG.PALETTE.highlight;
+                sceneCtx.shadowBlur = 30 * pulse;
+                sceneCtx.globalAlpha = 0.7 * pulse;
+                sceneCtx.drawImage(imgObj.img, -drawW / 2, -drawH / 2, drawW, drawH);
+                sceneCtx.shadowBlur = 0;
+                sceneCtx.globalAlpha = 1;
+
+                // Character control indicator
+                if (state.characterVelocity.x !== 0 || state.characterVelocity.y !== 0) {
+                    sceneCtx.strokeStyle = CONFIG.PALETTE.highlight;
+                    sceneCtx.lineWidth = 2;
+                    sceneCtx.setLineDash([3, 3]);
+                    sceneCtx.strokeRect(-drawW / 2 - 8, -drawH / 2 - 8, drawW + 16, drawH + 16);
+                    sceneCtx.setLineDash([]);
+                }
+            }
+
+            // Outlines
+            if (imgObj === state.selectedImage) {
+                sceneCtx.globalAlpha = 1;
+                sceneCtx.strokeStyle = CONFIG.PALETTE.secondary;
+                sceneCtx.lineWidth = 3;
+                sceneCtx.setLineDash([5, 5]);
+                sceneCtx.strokeRect(-drawW / 2 - 5, -drawH / 2 - 5, drawW + 10, drawH + 10);
+                sceneCtx.setLineDash([]);
+            }
+
+            if (state.isDragging && imgObj === state.draggedImage) {
+                sceneCtx.globalAlpha = 1;
+                sceneCtx.strokeStyle = CONFIG.PALETTE.accent;
+                sceneCtx.lineWidth = 2;
+                sceneCtx.strokeRect(-drawW / 2 - 3, -drawH / 2 - 3, drawW + 6, drawH + 6);
+            }
+
+            sceneCtx.restore();
+        });
+    },
+
+    applyBlendMode(mode) {
+        switch(mode) {
+            case 'screen': sceneCtx.globalCompositeOperation = 'screen'; break;
+            case 'multiply': sceneCtx.globalCompositeOperation = 'multiply'; break;
+            case 'overlay': sceneCtx.globalCompositeOperation = 'overlay'; break;
+            default: sceneCtx.globalCompositeOperation = 'source-over'; break;
+        }
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCENE RENDERING (Simplified - buildings, people, cars, rain, etc.)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const scene = {
+    init() {
+        // Initialize buildings, people, cars, rain
+        this.initBuildings();
+        this.initPeople();
+        this.initCars();
+        this.initRain();
+    },
+
+    initBuildings() {
+        const specs = [
+            { x: 0, w: 70, h: 200, sign: null },
+            { x: 80, w: 55, h: 290, sign: { text: 'ホテル', color: '#ff00ff', y: 80 } },
+            { x: 145, w: 95, h: 175, sign: { text: '酒場', color: '#ff6b00', y: 100 } },
+            { x: 250, w: 65, h: 330, spire: true },
+            { x: 325, w: 100, h: 160, sign: { text: 'CLUB', color: '#00f5ff', y: 90 } },
+            { x: 435, w: 60, h: 270, sign: { text: '24H', color: '#39ff14', y: 120 } },
+            { x: 505, w: 85, h: 195 },
+            { x: 600, w: 70, h: 250, sign: { text: 'BAR', color: '#ff0055', y: 140 } },
+            { x: 680, w: 60, h: 180 },
+            { x: 750, w: 50, h: 220 }
+        ];
+
+        specs.forEach((s, i) => {
+            const windowRows = Math.floor(s.h / 14);
+            const windowCols = Math.floor(s.w / 14);
+            const windows = [];
+
+            for (let r = 0; r < windowRows; r++) {
+                for (let c = 0; c < windowCols; c++) {
+                    windows.push({
+                        x: s.x + 5 + c * 13,
+                        y: CONFIG.SCENE_HEIGHT - s.h + 8 + r * 14,
+                        lit: Math.random() > 0.3,
+                        flicker: Math.random() < 0.05,
+                        hue: Math.random() * 30 + 30
+                    });
+                }
+            }
+
+            entities.buildings.push({
+                ...s,
+                windows,
+                baseY: CONFIG.SCENE_HEIGHT - s.h,
+                pulsePhase: Math.random() * Math.PI * 2
+            });
+        });
+    },
+
+    initPeople() {
+        const hairColors = ['#111', '#222', '#331100', '#ff00ff', '#00f5ff'];
+        const clothesColors = ['#111', '#222', '#333', '#ff0055', '#00f5ff', '#ff00ff', '#006633'];
+
+        for (let i = 0; i < 40; i++) {
+            const hasUmbrella = Math.random() < 0.4;
+            entities.people.push({
+                x: Math.random() * CONFIG.SCENE_WIDTH,
+                y: 320 + Math.random() * 35,
+                vx: (Math.random() - 0.5) * 1.5,
+                height: 28 + Math.random() * 15,
+                behavior: Math.random() < 0.6 ? 'walk' : Math.random() < 0.5 ? 'stand' : 'dance',
+                phase: Math.random() * Math.PI * 2,
+                hairColor: hairColors[Math.floor(Math.random() * hairColors.length)],
+                clothesColor: clothesColors[Math.floor(Math.random() * clothesColors.length)],
+                umbrella: hasUmbrella,
+                umbrellaColor: hasUmbrella ? CONFIG.PALETTE.neon[Math.floor(Math.random() * CONFIG.PALETTE.neon.length)] : null,
+                armUp: false
+            });
+        }
+    },
+
+    initCars() {
+        const lanes = [
+            { y: 375, dir: 1, speed: 2.5 },
+            { y: 395, dir: 1, speed: 3.5 },
+            { y: 415, dir: -1, speed: 3 },
+            { y: 435, dir: -1, speed: 4 }
+        ];
+
+        const types = [
+            { name: 'sedan', w: 55, h: 22, weight: 0.35 },
+            { name: 'sports', w: 60, h: 18, weight: 0.15 },
+            { name: 'suv', w: 65, h: 28, weight: 0.2 },
+            { name: 'taxi', w: 55, h: 22, weight: 0.2, color: '#ccaa00' },
+            { name: 'police', w: 58, h: 24, weight: 0.1, lights: true, color: '#111' }
+        ];
+
+        const colors = ['#1a1a1a', '#2a2a2a', '#0a0a0a', '#330000', '#000033', '#003300'];
+
+        for (let i = 0; i < 16; i++) {
+            const lane = lanes[i % lanes.length];
+            const type = utils.weightedRandom(types);
+
+            entities.cars.push({
+                x: Math.random() * CONFIG.SCENE_WIDTH * 1.5 - CONFIG.SCENE_WIDTH * 0.25,
+                y: lane.y,
+                w: type.w,
+                h: type.h,
+                dir: lane.dir,
+                speed: lane.speed * (0.8 + Math.random() * 0.4),
+                color: type.color || colors[Math.floor(Math.random() * colors.length)],
+                hasLights: type.lights || false,
+                lightPhase: Math.random() * Math.PI * 2,
+                braking: false
+            });
+        }
+    },
+
+    initRain() {
+        for (let i = 0; i < 200; i++) {
+            const drop = pools.get('raindrops') || {};
+            drop.x = Math.random() * CONFIG.SCENE_WIDTH;
+            drop.y = Math.random() * CONFIG.SCENE_HEIGHT;
+            drop.speed = 8 + Math.random() * 6;
+            drop.length = 10 + Math.random() * 15;
+            entities.raindrops.push(drop);
+        }
+    },
+
+    update() {
+        this.updatePeople();
+        this.updateCars();
+        this.updateRain();
+        this.updateParticles();
+    },
+
+    updatePeople() {
+        entities.people.forEach(p => {
+            if (p.behavior === 'walk') {
+                p.x += p.vx * (1 + state.bassAvg / 255 * 0.3 * state.reactivity);
+                if (p.x < -30) p.x = CONFIG.SCENE_WIDTH + 30;
+                if (p.x > CONFIG.SCENE_WIDTH + 30) p.x = -30;
+            } else if (p.behavior === 'dance') {
+                p.x += Math.sin(state.t * 0.1 + p.phase) * 0.5;
+            }
+
+            if (state.beatDetected && Math.random() < 0.3) {
+                p.armUp = true;
+                setTimeout(() => p.armUp = false, 300);
+            }
+        });
+    },
+
+    updateCars() {
+        entities.cars.forEach(car => {
+            const speedMod = 1 + (state.bassAvg / 255) * 0.5 * state.reactivity;
+            car.x += car.speed * car.dir * speedMod;
+
+            if (car.dir > 0 && car.x > CONFIG.SCENE_WIDTH + 100) car.x = -car.w - 50;
+            if (car.dir < 0 && car.x < -car.w - 50) car.x = CONFIG.SCENE_WIDTH + 100;
+
+            if (Math.random() < 0.002) {
+                car.braking = true;
+                setTimeout(() => car.braking = false, 500);
+            }
+        });
+    },
+
+    updateRain() {
+        if (state.rainIntensity <= 0) return;
+
+        entities.raindrops.forEach(drop => {
+            drop.x += 2 * state.rainIntensity;
+            drop.y += drop.speed * state.rainIntensity;
+
+            if (drop.y > 360) {
+                if (Math.random() < 0.3) {
+                    const splash = pools.get('splashes') || {};
+                    splash.x = drop.x;
+                    splash.y = 360 + Math.random() * 20;
+                    splash.radius = 2;
+                    splash.maxRadius = 5 + Math.random() * 3;
+                    splash.alpha = 0.6;
+                    entities.splashes.push(splash);
+                }
+                drop.x = Math.random() * CONFIG.SCENE_WIDTH;
+                drop.y = -drop.length;
+            }
+        });
+
+        for (let i = entities.splashes.length - 1; i >= 0; i--) {
+            const splash = entities.splashes[i];
+            splash.radius += 0.5;
+            splash.alpha -= 0.08;
+            if (splash.alpha <= 0) {
+                pools.release('splashes', splash);
+                entities.splashes.splice(i, 1);
+            }
+        }
+    },
+
+    updateParticles() {
+        // Steam
+        if (Math.random() < 0.1) {
+            const spawnPoints = [100, 300, 500, 700];
+            const x = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
+            entities.steamParticles.push({
+                x: x + Math.random() * 20 - 10,
+                y: 360,
+                size: 10 + Math.random() * 20,
+                alpha: 0.15,
+                vy: -0.5 - Math.random() * 0.5
+            });
+        }
+
+        for (let i = entities.steamParticles.length - 1; i >= 0; i--) {
+            const p = entities.steamParticles[i];
+            p.y += p.vy;
+            p.x += Math.sin(state.t * 0.05 + i) * 0.3;
+            p.size += 0.2;
+            p.alpha -= 0.002;
+            if (p.alpha <= 0 || p.y < 200) {
+                pools.release('steam', p);
+                entities.steamParticles.splice(i, 1);
+            }
+        }
+
+        // Enhanced sparks with more variety
+        if (state.beatDetected && Math.random() < 0.4) {
+            const x = 100 + Math.random() * 600;
+            const count = 15 + Math.floor(state.bassAvg / 20);
+            for (let i = 0; i < count; i++) {
+                const spark = pools.get('sparks') || {};
+                spark.x = x + (Math.random() - 0.5) * 20;
+                spark.y = 100 + Math.random() * 50;
+                spark.vx = (Math.random() - 0.5) * 6;
+                spark.vy = -Math.random() * 4 - 1;
+                spark.life = 1;
+                spark.prevX = spark.x;
+                spark.prevY = spark.y;
+                entities.sparks.push(spark);
+            }
+        }
+
+        for (let i = entities.sparks.length - 1; i >= 0; i--) {
+            const s = entities.sparks[i];
+            s.x += s.vx;
+            s.y += s.vy;
+            s.vy += 0.2;
+            s.vx *= 0.98; // Air resistance
+            s.life -= 0.04;
+            if (s.life <= 0 || s.y > CONFIG.SCENE_HEIGHT + 50) {
+                pools.release('sparks', s);
+                entities.sparks.splice(i, 1);
+            }
+        }
+    },
+
+    render() {
+        // Save previous frame for motion blur
+        if (state.motionBlur > 0 && previousFrameCtx) {
+            previousFrameCtx.clearRect(0, 0, CONFIG.SCENE_WIDTH, CONFIG.SCENE_HEIGHT);
+            previousFrameCtx.drawImage(sceneCanvas, 0, 0);
+        }
+
+        sceneCtx.clearRect(0, 0, CONFIG.SCENE_WIDTH, CONFIG.SCENE_HEIGHT);
+
+        this.renderSky();
+        this.renderBuildings();
+        this.renderGround();
+        this.renderParticles();
+        this.renderCars();
+        this.renderPeople();
+        this.renderRain();
+
+        // Apply post-processing
+        this.applyPostProcessing();
+    },
+
+    applyPostProcessing() {
+        if (!postProcessCtx) return;
+
+        if (state.bloomIntensity > 0 || state.chromaticAberration > 0 || state.motionBlur > 0) {
+            // Copy scene to post-process buffer
+            postProcessCtx.clearRect(0, 0, CONFIG.SCENE_WIDTH, CONFIG.SCENE_HEIGHT);
+            postProcessCtx.drawImage(sceneCanvas, 0, 0);
+
+            // Apply bloom
+            if (state.bloomIntensity > 0) {
+                this.applyBloom();
+            }
+
+            // Apply motion blur
+            if (state.motionBlur > 0 && previousFrameCtx) {
+                sceneCtx.globalAlpha = state.motionBlur * 0.3;
+                sceneCtx.drawImage(previousFrameCanvas, 0, 0);
+                sceneCtx.globalAlpha = 1;
+            }
+
+            // Apply chromatic aberration
+            if (state.chromaticAberration > 0) {
+                this.applyChromaticAberration();
+            }
+        }
+
+        // Apply volumetric fog
+        if (state.fogDensity > 0) {
+            this.applyVolumetricFog();
+        }
+    },
+
+    applyBloom() {
+        const intensity = state.bloomIntensity * (1 + state.bassAvg / 255 * 0.4);
+
+        if (!bloomCtx) return;
+
+        // Enhanced bloom extraction with better threshold
+        bloomCtx.clearRect(0, 0, CONFIG.SCENE_WIDTH, CONFIG.SCENE_HEIGHT);
+        bloomCtx.drawImage(postProcessCanvas, 0, 0);
+
+        const imageData = bloomCtx.getImageData(0, 0, CONFIG.SCENE_WIDTH, CONFIG.SCENE_HEIGHT);
+        const data = imageData.data;
+        const threshold = 120; // Lower threshold for more bloom
+
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            // Use perceptual luminance for better results
+            const brightness = r * 0.299 + g * 0.587 + b * 0.114;
+
+            if (brightness > threshold) {
+                // Enhanced bloom with smooth falloff
+                const factor = Math.pow((brightness - threshold) / (255 - threshold), 1.5) * intensity;
+                const boost = 1.0 + factor * 0.8;
+
+                data[i] = Math.min(255, r * boost);
+                data[i + 1] = Math.min(255, g * boost);
+                data[i + 2] = Math.min(255, b * boost);
+            } else {
+                // Darken non-bloom areas more smoothly
+                const darken = 0.92 + (brightness / threshold) * 0.08;
+                data[i] *= darken;
+                data[i + 1] *= darken;
+                data[i + 2] *= darken;
+            }
+        }
+
+        bloomCtx.putImageData(imageData, 0, 0);
+
+        // Apply Gaussian blur simulation using a separable box blur
+        const blurData = bloomCtx.getImageData(0, 0, CONFIG.SCENE_WIDTH, CONFIG.SCENE_HEIGHT);
+        const pixels = blurData.data;
+        const width = CONFIG.SCENE_WIDTH;
+        const height = CONFIG.SCENE_HEIGHT;
+        const radius = 2;
+        const temp = new Uint8ClampedArray(pixels.length);
+
+        // Perform a small number of separable blur passes for a stronger effect
+        for (let pass = 0; pass < 2; pass++) {
+            // Horizontal blur: pixels -> temp
+            for (let y = 0; y < height; y++) {
+                const rowOffset = y * width * 4;
+                for (let x = 0; x < width; x++) {
+                    let r = 0, g = 0, b = 0, count = 0;
+                    for (let dx = -radius; dx <= radius; dx++) {
+                        const sx = Math.min(width - 1, Math.max(0, x + dx));
+                        const idx = rowOffset + sx * 4;
+                        r += pixels[idx];
+                        g += pixels[idx + 1];
+                        b += pixels[idx + 2];
+                        count++;
+                    }
+                    const dstIdx = rowOffset + x * 4;
+                    temp[dstIdx] = r / count;
+                    temp[dstIdx + 1] = g / count;
+                    temp[dstIdx + 2] = b / count;
+                    temp[dstIdx + 3] = pixels[dstIdx + 3];
+                }
+            }
+
+            // Vertical blur: temp -> pixels
+            for (let x = 0; x < width; x++) {
+                const colOffset = x * 4;
+                for (let y = 0; y < height; y++) {
+                    let r = 0, g = 0, b = 0, count = 0;
+                    for (let dy = -radius; dy <= radius; dy++) {
+                        const sy = Math.min(height - 1, Math.max(0, y + dy));
+                        const idx = sy * width * 4 + colOffset;
+                        r += temp[idx];
+                        g += temp[idx + 1];
+                        b += temp[idx + 2];
+                        count++;
+                    }
+                    const dstIdx = y * width * 4 + colOffset;
+                    pixels[dstIdx] = r / count;
+                    pixels[dstIdx + 1] = g / count;
+                    pixels[dstIdx + 2] = b / count;
+                    pixels[dstIdx + 3] = temp[dstIdx + 3];
+                }
+            }
+        }
+
+        bloomCtx.putImageData(blurData, 0, 0);
+
+        // Enhanced blend with multiple layers
+        sceneCtx.globalCompositeOperation = 'screen';
+
+        // Outer bloom layer
+        sceneCtx.globalAlpha = intensity * 0.3;
+        sceneCtx.drawImage(bloomCanvas, 0, 0);
+
+        // Inner bloom layer with slight offset for depth
+        sceneCtx.globalAlpha = intensity * 0.2;
+        sceneCtx.drawImage(bloomCanvas, 0, 0);
+
+        sceneCtx.globalAlpha = 1;
+        sceneCtx.globalCompositeOperation = 'source-over';
+    },
+
+    applyChromaticAberration() {
+        const baseOffset = state.chromaticAberration * 8;
+        const audioBoost = 1 + state.bassAvg / 255 * 0.6;
+        const offset = baseOffset * audioBoost;
+
+        // Enhanced chromatic aberration with better color separation
+        sceneCtx.save();
+
+        // Red channel (shifted left)
+        sceneCtx.globalCompositeOperation = 'screen';
+        sceneCtx.globalAlpha = 0.35;
+        sceneCtx.filter = 'brightness(1.1) contrast(1.05)';
+        sceneCtx.drawImage(postProcessCanvas, -offset * 1.2, 0);
+
+        // Green channel (center, slightly enhanced)
+        sceneCtx.globalAlpha = 0.36;
+        sceneCtx.filter = 'brightness(1.05)';
+        sceneCtx.drawImage(postProcessCanvas, 0, 0);
+
+        // Blue channel (shifted right)
+        sceneCtx.globalAlpha = 0.35;
+        sceneCtx.filter = 'brightness(1.1) contrast(1.05)';
+        sceneCtx.drawImage(postProcessCanvas, offset * 1.2, 0);
+
+        // Add subtle vertical offset for more dynamic effect
+        sceneCtx.globalAlpha = 0.1;
+        sceneCtx.drawImage(postProcessCanvas, -offset * 0.5, -offset * 0.3);
+        sceneCtx.drawImage(postProcessCanvas, offset * 0.5, offset * 0.3);
+
+        sceneCtx.restore();
+        sceneCtx.globalAlpha = 1;
+        sceneCtx.globalCompositeOperation = 'source-over';
+    },
+
+    applyVolumetricFog() {
+        const fogGrad = sceneCtx.createLinearGradient(0, 0, 0, CONFIG.SCENE_HEIGHT);
+        const fogColor = `rgba(${25 + state.midAvg / 10}, ${15 + state.bassAvg / 15}, ${35 + state.highAvg / 10}, ${state.fogDensity * (1 + state.bassAvg / 255 * 0.3)})`;
+        fogGrad.addColorStop(0, 'transparent');
+        fogGrad.addColorStop(0.5, fogColor);
+        fogGrad.addColorStop(1, fogColor);
+
+        sceneCtx.fillStyle = fogGrad;
+        sceneCtx.fillRect(0, 0, CONFIG.SCENE_WIDTH, CONFIG.SCENE_HEIGHT);
+    },
+
+    renderSky() {
+        const grad = sceneCtx.createLinearGradient(0, 0, 0, 250);
+        const bassBoost = state.bassAvg / 255 * 0.15 * state.reactivity;
+        grad.addColorStop(0, `rgb(${10 + bassBoost * 50}, 5, ${15 + state.highAvg / 255 * 10})`);
+        grad.addColorStop(1, `rgb(${25 + state.midAvg / 255 * 20}, 8, 35)`);
+        sceneCtx.fillStyle = grad;
+        sceneCtx.fillRect(0, 0, CONFIG.SCENE_WIDTH, 250);
+
+        // Stars
+        sceneCtx.fillStyle = '#fff';
+        for (let i = 0; i < 60; i++) {
+            const twinkle = (Math.sin(state.t * 0.03 + i * 0.5) + 1) / 2;
+            const audioTwinkle = 1 + (state.highAvg / 255) * 0.5 * state.reactivity;
+            sceneCtx.globalAlpha = twinkle * 0.7 * audioTwinkle;
+            sceneCtx.fillRect((i * 97) % CONFIG.SCENE_WIDTH, (i * 43) % 200, 1.5, 1.5);
+        }
+        sceneCtx.globalAlpha = 1;
+
+        // Clouds (simplified)
+        sceneCtx.fillStyle = 'rgba(40, 20, 50, 0.12)';
+        for (let i = 0; i < 4; i++) {
+            const cx = ((state.t * 0.2 + i * 200) % (CONFIG.SCENE_WIDTH + 200)) - 100;
+            sceneCtx.beginPath();
+            sceneCtx.ellipse(cx, 80 + i * 30, 80, 25, 0, 0, Math.PI * 2);
+            sceneCtx.fill();
+        }
+    },
+
+    renderBuildings() {
+        entities.buildings.forEach((b, bi) => {
+            const pulse = 1 + Math.sin(state.t * 0.02 + b.pulsePhase) * 0.02 * (state.bassAvg / 255);
+            const h = b.h * pulse;
+            const y = CONFIG.SCENE_HEIGHT - h;
+
+            const gradient = sceneCtx.createLinearGradient(b.x, y, b.x + b.w, y);
+            gradient.addColorStop(0, `rgb(${25 + bi * 2}, ${20 + bi * 2}, ${35 + bi * 2})`);
+            gradient.addColorStop(1, `rgb(${35 + bi * 2}, ${30 + bi * 2}, ${45 + bi * 2})`);
+            sceneCtx.fillStyle = gradient;
+            sceneCtx.fillRect(b.x, y, b.w, h);
+
+            // Windows (simplified render)
+            b.windows.forEach(w => {
+                if (!w.lit) return;
+                const brightness = w.flicker && Math.random() < 0.1 ? 0.3 : 0.8;
+                const audioBoost = 1 + (state.midAvg / 255) * 0.5 * state.reactivity;
+                sceneCtx.fillStyle = `hsla(${w.hue}, 80%, ${50 * brightness * audioBoost}%, ${0.7 + state.midAvg / 255 * 0.3})`;
+                sceneCtx.fillRect(w.x, w.y + (CONFIG.SCENE_HEIGHT - h - b.baseY), 8, 10);
+            });
+
+            // Enhanced neon signs with multi-layer glow
+            if (b.sign) {
+                const signY = y + b.sign.y;
+                const flicker = Math.sin(state.t * 0.3 + bi) > -0.9 ? 1 : 0.3;
+                const audioGlow = 1 + (state.highAvg / 255) * 0.8 * state.reactivity;
+                const baseGlow = 20 * flicker * audioGlow * state.glowAmount;
+
+                sceneCtx.font = 'bold 18px sans-serif';
+
+                // Outer glow layer
+                sceneCtx.shadowColor = b.sign.color;
+                sceneCtx.shadowBlur = baseGlow * 2;
+                sceneCtx.fillStyle = b.sign.color;
+                sceneCtx.fillText(b.sign.text, b.x + 5, signY);
+
+                // Middle glow layer
+                sceneCtx.shadowBlur = baseGlow * 1.5;
+                sceneCtx.fillText(b.sign.text, b.x + 5, signY);
+
+                // Inner glow layer
+                sceneCtx.shadowBlur = baseGlow;
+                sceneCtx.fillText(b.sign.text, b.x + 5, signY);
+
+                // Core text
+                sceneCtx.shadowBlur = 0;
+                sceneCtx.fillStyle = '#ffffff';
+                sceneCtx.globalAlpha = 0.9;
+                sceneCtx.fillText(b.sign.text, b.x + 5, signY);
+                sceneCtx.globalAlpha = 1;
+
+                // Pulsing effect on beat
+                if (state.beatDetected) {
+                    sceneCtx.shadowColor = b.sign.color;
+                    sceneCtx.shadowBlur = baseGlow * 2.5;
+                    sceneCtx.fillStyle = b.sign.color;
+                    sceneCtx.fillText(b.sign.text, b.x + 5, signY);
+                }
+                sceneCtx.shadowBlur = 0;
+            }
+        });
+    },
+
+    renderGround() {
+        // Road
+        sceneCtx.fillStyle = '#151515';
+        sceneCtx.fillRect(0, 360, CONFIG.SCENE_WIDTH, 90);
+
+        // Enhanced wet road reflection with screen space reflections
+        const reflectionGrad = sceneCtx.createLinearGradient(0, 360, 0, 450);
+        const reflectionIntensity = 0.2 + (state.midAvg / 255) * 0.15 * state.reactivity;
+        reflectionGrad.addColorStop(0, `rgba(0, 80, 120, ${0.25 * reflectionIntensity})`);
+        reflectionGrad.addColorStop(0.5, `rgba(0, 50, 80, ${0.15 * reflectionIntensity})`);
+        reflectionGrad.addColorStop(1, 'rgba(0, 20, 40, 0.05)');
+        sceneCtx.fillStyle = reflectionGrad;
+        sceneCtx.fillRect(0, 360, CONFIG.SCENE_WIDTH, 90);
+
+        // Add reflection of neon signs
+        if (state.rainIntensity > 0.3) {
+            sceneCtx.save();
+            sceneCtx.globalCompositeOperation = 'screen';
+            sceneCtx.globalAlpha = 0.3 * reflectionIntensity;
+            sceneCtx.scale(1, -1);
+            sceneCtx.translate(0, -CONFIG.SCENE_HEIGHT * 2);
+
+            // Reflect neon signs
+            entities.buildings.forEach((b, bi) => {
+                if (b.sign) {
+                    const signY = CONFIG.SCENE_HEIGHT - b.h + b.sign.y;
+                    const flicker = Math.sin(state.t * 0.3 + bi) > -0.9 ? 1 : 0.3;
+                    const audioGlow = 1 + (state.highAvg / 255) * 0.5 * state.reactivity;
+
+                    sceneCtx.font = 'bold 16px sans-serif';
+                    sceneCtx.fillStyle = b.sign.color;
+                    sceneCtx.shadowColor = b.sign.color;
+                    sceneCtx.shadowBlur = 10 * flicker * audioGlow * state.glowAmount;
+                    sceneCtx.fillText(b.sign.text, b.x + 5, signY);
+                }
+            });
+
+            sceneCtx.restore();
+        }
+
+        // Lane markings
+        sceneCtx.strokeStyle = `rgba(255, 200, 0, ${0.5 + state.bassAvg / 255 * 0.5 * state.reactivity})`;
         sceneCtx.lineWidth = 2;
-        sceneCtx.shadowColor = "#ffff00";
-        sceneCtx.shadowBlur = 4;
-        sceneCtx.beginPath();
-        sceneCtx.moveTo(s.prevX, s.prevY);
-        sceneCtx.lineTo(s.x, s.y);
-        sceneCtx.stroke();
-      }
+        sceneCtx.setLineDash([25, 15]);
+        [385, 405, 425].forEach(y => {
+            sceneCtx.beginPath();
+            sceneCtx.moveTo(0, y);
+            sceneCtx.lineTo(CONFIG.SCENE_WIDTH, y);
+            sceneCtx.stroke();
+        });
+        sceneCtx.setLineDash([]);
 
-      // Spark core
-      sceneCtx.fillStyle = `rgba(255, 255, 150, ${sparkGlow})`;
-      sceneCtx.shadowColor = "#ffff00";
-      sceneCtx.shadowBlur = 8 * sparkGlow;
-      sceneCtx.beginPath();
-      sceneCtx.arc(s.x, s.y, 2 * sparkGlow, 0, Math.PI * 2);
-      sceneCtx.fill();
+        // Sidewalk
+        sceneCtx.fillStyle = '#252525';
+        sceneCtx.fillRect(0, 315, CONFIG.SCENE_WIDTH, 45);
+        sceneCtx.fillStyle = '#333';
+        sceneCtx.fillRect(0, 358, CONFIG.SCENE_WIDTH, 4);
 
-      // Store position for next frame
-      s.prevX = s.x;
-      s.prevY = s.y;
-    });
-    sceneCtx.shadowBlur = 0;
-  },
+        // Crosswalk
+        sceneCtx.fillStyle = `rgba(255, 255, 255, ${0.7 + state.bassAvg / 255 * 0.3})`;
+        for (let i = 0; i < 8; i++) {
+            sceneCtx.fillRect(380 + i * 10, 360, 6, 40);
+        }
+
+        // Enhanced streetlights with volumetric lighting
+        const lightPositions = [80, 200, 350, 500, 650, 750];
+        lightPositions.forEach((lx, i) => {
+            // Pole
+            sceneCtx.fillStyle = '#333';
+            sceneCtx.fillRect(lx - 2, 280, 4, 80);
+            sceneCtx.fillRect(lx - 2, 280, 20, 3);
+
+            const flicker = Math.sin(state.t * 0.1 + i * 2) > -0.95 ? 1 : 0.5;
+            const audioBoost = 1 + (state.midAvg / 255) * 0.4 * state.reactivity;
+            const glowSize = 25 * flicker * state.glowAmount * audioBoost;
+
+            // Volumetric light cone
+            const lightGrad = sceneCtx.createRadialGradient(lx + 15, 282, 0, lx + 15, 282, glowSize * 2);
+            lightGrad.addColorStop(0, `rgba(255, 200, 100, ${0.6 * flicker * audioBoost})`);
+            lightGrad.addColorStop(0.5, `rgba(255, 200, 100, ${0.3 * flicker * audioBoost})`);
+            lightGrad.addColorStop(1, 'transparent');
+            sceneCtx.fillStyle = lightGrad;
+            sceneCtx.beginPath();
+            sceneCtx.arc(lx + 15, 282, glowSize * 2, 0, Math.PI * 2);
+            sceneCtx.fill();
+
+            // Light bulb
+            sceneCtx.fillStyle = `rgba(255, 220, 120, ${0.95 * flicker * audioBoost})`;
+            sceneCtx.shadowColor = '#ffcc66';
+            sceneCtx.shadowBlur = glowSize;
+            sceneCtx.beginPath();
+            sceneCtx.arc(lx + 15, 282, 6, 0, Math.PI * 2);
+            sceneCtx.fill();
+
+            // Core
+            sceneCtx.shadowBlur = 0;
+            sceneCtx.fillStyle = '#ffffcc';
+            sceneCtx.beginPath();
+            sceneCtx.arc(lx + 15, 282, 3, 0, Math.PI * 2);
+            sceneCtx.fill();
+        });
+    },
+
+    renderCars() {
+        const sorted = [...entities.cars].sort((a, b) => a.y - b.y);
+
+        sorted.forEach(car => {
+            // Shadow
+            sceneCtx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            sceneCtx.fillRect(car.x, car.y + car.h + 2, car.w, 5);
+
+            // Body
+            sceneCtx.fillStyle = car.color;
+            sceneCtx.fillRect(car.x, car.y, car.w, car.h);
+            sceneCtx.fillRect(car.x + car.w * 0.2, car.y - car.h * 0.4, car.w * 0.5, car.h * 0.4);
+
+            // Windows
+            sceneCtx.fillStyle = 'rgba(100, 150, 200, 0.3)';
+            sceneCtx.fillRect(car.x + car.w * 0.22, car.y - car.h * 0.35, car.w * 0.2, car.h * 0.35);
+            sceneCtx.fillRect(car.x + car.w * 0.45, car.y - car.h * 0.35, car.w * 0.2, car.h * 0.35);
+
+            // Headlights
+            const headlightX = car.dir > 0 ? car.x + car.w - 5 : car.x + 5;
+            sceneCtx.fillStyle = 'rgba(255, 255, 200, 0.9)';
+            sceneCtx.beginPath();
+            sceneCtx.arc(headlightX, car.y + car.h * 0.3, 3, 0, Math.PI * 2);
+            sceneCtx.arc(headlightX, car.y + car.h * 0.7, 3, 0, Math.PI * 2);
+            sceneCtx.fill();
+
+            // Taillights
+            const tailX = car.dir > 0 ? car.x + 3 : car.x + car.w - 8;
+            const tailBright = car.braking ? 1 : 0.6;
+            sceneCtx.fillStyle = `rgba(255, 0, 0, ${tailBright})`;
+            sceneCtx.fillRect(tailX, car.y + 3, 5, 5);
+            sceneCtx.fillRect(tailX, car.y + car.h - 8, 5, 5);
+
+            // Wheels
+            sceneCtx.fillStyle = '#0a0a0a';
+            sceneCtx.beginPath();
+            sceneCtx.arc(car.x + 12, car.y + car.h, 6, 0, Math.PI * 2);
+            sceneCtx.arc(car.x + car.w - 12, car.y + car.h, 6, 0, Math.PI * 2);
+            sceneCtx.fill();
+        });
+    },
+
+    renderPeople() {
+        entities.people.forEach(p => {
+            const bounce = Math.sin(state.t * 0.15 + p.phase) * 4 * (state.bassAvg / 255) * state.reactivity;
+            const sway = p.behavior === 'dance' ? Math.sin(state.t * 0.1 + p.phase) * 3 : 0;
+
+            const x = p.x + sway;
+            const y = p.y + bounce;
+            const h = p.height;
+
+            // Shadow
+            sceneCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            sceneCtx.beginPath();
+            sceneCtx.ellipse(x, p.y + 5, 8, 3, 0, 0, Math.PI * 2);
+            sceneCtx.fill();
+
+            // Body
+            sceneCtx.fillStyle = p.clothesColor;
+            sceneCtx.fillRect(x - 5, y - h * 0.6, 10, h * 0.4);
+
+            // Head
+            sceneCtx.fillStyle = '#ddb892';
+            sceneCtx.beginPath();
+            sceneCtx.arc(x, y - h * 0.75, 6, 0, Math.PI * 2);
+            sceneCtx.fill();
+
+            // Hair
+            sceneCtx.fillStyle = p.hairColor;
+            sceneCtx.beginPath();
+            sceneCtx.arc(x, y - h * 0.8, 6, Math.PI, Math.PI * 2);
+            sceneCtx.fill();
+
+            // Umbrella
+            if (p.umbrella) {
+                sceneCtx.fillStyle = p.umbrellaColor;
+                sceneCtx.beginPath();
+                sceneCtx.arc(x, y - h - 15, 18, Math.PI, Math.PI * 2);
+                sceneCtx.fill();
+            }
+        });
+    },
+
+    renderRain() {
+        if (state.rainIntensity <= 0) return;
+
+        sceneCtx.strokeStyle = `rgba(150, 180, 220, ${0.3 * state.rainIntensity})`;
+        sceneCtx.lineWidth = 1;
+
+        entities.raindrops.forEach(drop => {
+            sceneCtx.beginPath();
+            sceneCtx.moveTo(drop.x, drop.y);
+            sceneCtx.lineTo(drop.x + 3, drop.y + drop.length);
+            sceneCtx.stroke();
+        });
+
+        // Splashes
+        sceneCtx.strokeStyle = 'rgba(150, 180, 220, 0.5)';
+        entities.splashes.forEach(s => {
+            sceneCtx.globalAlpha = s.alpha;
+            sceneCtx.beginPath();
+            sceneCtx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+            sceneCtx.stroke();
+        });
+        sceneCtx.globalAlpha = 1;
+    },
+
+    renderParticles() {
+        // Enhanced steam with glow
+        entities.steamParticles.forEach(p => {
+            const glow = 1 + (state.midAvg / 255) * 0.5 * state.reactivity;
+
+            // Outer glow
+            const gradient = sceneCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 1.5);
+            gradient.addColorStop(0, `rgba(200, 220, 255, ${p.alpha * 0.6 * glow})`);
+            gradient.addColorStop(0.5, `rgba(180, 200, 220, ${p.alpha * 0.4 * glow})`);
+            gradient.addColorStop(1, 'transparent');
+            sceneCtx.fillStyle = gradient;
+            sceneCtx.beginPath();
+            sceneCtx.arc(p.x, p.y, p.size * 1.5, 0, Math.PI * 2);
+            sceneCtx.fill();
+
+            // Core
+            sceneCtx.fillStyle = `rgba(220, 240, 255, ${p.alpha * glow})`;
+            sceneCtx.beginPath();
+            sceneCtx.arc(p.x, p.y, p.size * 0.6, 0, Math.PI * 2);
+            sceneCtx.fill();
+        });
+
+        // Enhanced sparks with trails
+        entities.sparks.forEach(s => {
+            const sparkGlow = s.life * (1 + state.bassAvg / 255 * 0.8);
+
+            // Trail
+            if (s.prevX !== undefined && s.prevY !== undefined) {
+                const gradient = sceneCtx.createLinearGradient(s.prevX, s.prevY, s.x, s.y);
+                gradient.addColorStop(0, `rgba(255, 255, 100, ${sparkGlow * 0.3})`);
+                gradient.addColorStop(1, `rgba(255, 255, 100, ${sparkGlow * 0.8})`);
+                sceneCtx.strokeStyle = gradient;
+                sceneCtx.lineWidth = 2;
+                sceneCtx.shadowColor = '#ffff00';
+                sceneCtx.shadowBlur = 4;
+                sceneCtx.beginPath();
+                sceneCtx.moveTo(s.prevX, s.prevY);
+                sceneCtx.lineTo(s.x, s.y);
+                sceneCtx.stroke();
+            }
+
+            // Spark core
+            sceneCtx.fillStyle = `rgba(255, 255, 150, ${sparkGlow})`;
+            sceneCtx.shadowColor = '#ffff00';
+            sceneCtx.shadowBlur = 8 * sparkGlow;
+            sceneCtx.beginPath();
+            sceneCtx.arc(s.x, s.y, 2 * sparkGlow, 0, Math.PI * 2);
+            sceneCtx.fill();
+
+            // Store position for next frame
+            s.prevX = s.x;
+            s.prevY = s.y;
+        });
+        sceneCtx.shadowBlur = 0;
+    }
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2742,62 +3752,46 @@ const led = {
       gl.uniform1f(timeLoc, state.t * 0.01);
     }
 
-    const texLoc = gl.getUniformLocation(glProgram, "u_texture");
-    const freqLoc = gl.getUniformLocation(glProgram, "u_freq");
-    gl.uniform1i(texLoc, 0);
-    gl.uniform1i(freqLoc, 1);
+    render2D() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const w = ledCanvas.width / dpr;
+        const h = ledCanvas.height / dpr;
 
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, glTextures.scene);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, glTextures.freq);
+        // Enhanced background with subtle gradient
+        const bgGrad = ledCtx.createLinearGradient(0, 0, 0, h);
+        bgGrad.addColorStop(0, '#000000');
+        bgGrad.addColorStop(1, '#050508');
+        ledCtx.fillStyle = bgGrad;
+        ledCtx.fillRect(0, 0, w, h);
 
-    // Draw
-    const posLoc = gl.getAttribLocation(glProgram, "a_position");
-    const texLocAttr = gl.getAttribLocation(glProgram, "a_texCoord");
+        const cols = state.pixelSize;
+        const rows = Math.floor(cols * (h / w) * (CONFIG.SCENE_HEIGHT / CONFIG.SCENE_WIDTH));
+        const ledW = w / cols;
+        const ledH = h / rows;
+        const gap = Math.max(0.5, ledW * 0.12);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, glBuffers.position);
-    gl.enableVertexAttribArray(posLoc);
-    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 16, 0);
-    gl.enableVertexAttribArray(texLocAttr);
-    gl.vertexAttribPointer(texLocAttr, 2, gl.FLOAT, false, 16, 8);
+        // Use better sampling with bilinear interpolation simulation
+        const sceneData = sceneCtx.getImageData(0, 0, CONFIG.SCENE_WIDTH, CONFIG.SCENE_HEIGHT).data;
+        const scaleX = CONFIG.SCENE_WIDTH / cols;
+        const scaleY = CONFIG.SCENE_HEIGHT / rows;
 
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        // Define getPixel function once outside the loop
+        const getPixel = (x, y) => {
+            const idx = (y * CONFIG.SCENE_WIDTH + x) * 4;
+            return {
+                r: sceneData[idx] || 0,
+                g: sceneData[idx + 1] || 0,
+                b: sceneData[idx + 2] || 0
+            };
+        };
 
-    // Fallback: render LED grid on top for visual effect
-    this.renderLEDGrid();
-  },
-
-  render2D() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = ledCanvas.width / dpr;
-    const h = ledCanvas.height / dpr;
-
-    // Enhanced background with subtle gradient
-    const bgGrad = ledCtx.createLinearGradient(0, 0, 0, h);
-    bgGrad.addColorStop(0, "#000000");
-    bgGrad.addColorStop(1, "#050508");
-    ledCtx.fillStyle = bgGrad;
-    ledCtx.fillRect(0, 0, w, h);
-
-    const cols = state.pixelSize;
-    const rows = Math.floor(cols * (h / w) * (CONFIG.SCENE_HEIGHT / CONFIG.SCENE_WIDTH));
-    const ledW = w / cols;
-    const ledH = h / rows;
-    const gap = Math.max(0.5, ledW * 0.12);
-
-    // Use better sampling with bilinear interpolation simulation
-    const sceneData = sceneCtx.getImageData(0, 0, CONFIG.SCENE_WIDTH, CONFIG.SCENE_HEIGHT).data;
-    const scaleX = CONFIG.SCENE_WIDTH / cols;
-    const scaleY = CONFIG.SCENE_HEIGHT / rows;
-
-    // Pre-calculate audio boost values for performance
-    const audioBoosts = new Array(cols);
-    for (let col = 0; col < cols; col++) {
-      const freqIdx = Math.floor((col / cols) * 64);
-      const freqVal = freqData[freqIdx] || 0;
-      audioBoosts[col] = 1 + (freqVal / 255) * state.reactivity * 0.8;
-    }
+        // Pre-calculate audio boost values for performance
+        const audioBoosts = new Array(cols);
+        for (let col = 0; col < cols; col++) {
+            const freqIdx = Math.floor((col / cols) * 64);
+            const freqVal = freqData[freqIdx] || 0;
+            audioBoosts[col] = 1 + (freqVal / 255) * state.reactivity * 0.8;
+        }
 
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < cols; col++) {
@@ -2813,15 +3807,6 @@ const led = {
                 const fracY = fy - y1;
 
                 // Sample 4 pixels for bilinear interpolation
-                const getPixel = (x, y) => {
-                    const idx = (y * CONFIG.SCENE_WIDTH + x) * 4;
-                    return {
-                        r: sceneData[idx] || 0,
-                        g: sceneData[idx + 1] || 0,
-                        b: sceneData[idx + 2] || 0
-                    };
-                };
-
                 const p11 = getPixel(x1, y1);
                 const p21 = getPixel(x2, y1);
                 const p12 = getPixel(x1, y2);
@@ -2853,34 +3838,17 @@ const led = {
                 const y = row * ledH + gap / 2;
                 const lw = ledW - gap;
                 const lh = ledH - gap;
-                const centerX = x + lw / 2;
-                const centerY = y + lh / 2;
 
-                // Optimized multi-layer glow effect using simple fills instead of gradients
+                // Calculate brightness once
                 const brightness = (r + g + b) / 3;
+
+                // Use canvas shadow for glow effect (GPU-accelerated, much faster than gradients)
                 if (state.glowAmount > 0 && brightness > 100) {
                     const glowIntensity = (brightness / 255) * state.glowAmount;
-                    const glowSize = lw * 0.5 * glowIntensity;
-
-                    // Outer glow using multiple semi-transparent layers
-                    ledCtx.globalAlpha = 0.3 * glowIntensity;
-                    ledCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-                    ledCtx.beginPath();
-                    ledCtx.arc(centerX, centerY, lw * 0.5 + glowSize, 0, Math.PI * 2);
-                    ledCtx.fill();
-                    
-                    ledCtx.globalAlpha = 0.15 * glowIntensity;
-                    ledCtx.beginPath();
-                    ledCtx.arc(centerX, centerY, lw * 0.4 + glowSize * 0.7, 0, Math.PI * 2);
-                    ledCtx.fill();
-
-                    // Inner glow
-                    ledCtx.globalAlpha = 0.5 * glowIntensity;
-                    ledCtx.beginPath();
-                    ledCtx.arc(centerX, centerY, lw * 0.4, 0, Math.PI * 2);
-                    ledCtx.fill();
-                    
-                    ledCtx.globalAlpha = 1.0;
+                    ledCtx.shadowBlur = lw * 0.8 * glowIntensity;
+                    ledCtx.shadowColor = `rgb(${r}, ${g}, ${b})`;
+                } else {
+                    ledCtx.shadowBlur = 0;
                 }
 
                 // LED pixel with enhanced rendering
@@ -2888,10 +3856,12 @@ const led = {
                 utils.drawRoundedRect(ledCtx, x, y, lw, lh, lw * 0.15);
                 ledCtx.fill();
 
-                // Optimized highlight using simple semi-transparent fill
+                // Reset shadow for highlight
+                ledCtx.shadowBlur = 0;
+
+                // Enhanced highlight using simple alpha blending
                 if (brightness > 80) {
-                    ledCtx.globalAlpha = 0.2 * (brightness / 255);
-                    ledCtx.fillStyle = 'rgb(255, 255, 255)';
+                    ledCtx.fillStyle = `rgba(255, 255, 255, ${0.2 * (brightness / 255)})`;
                     utils.drawRoundedRect(ledCtx, x, y, lw, lh * 0.4, lw * 0.15);
                     ledCtx.fill();
                     ledCtx.globalAlpha = 1.0;
@@ -3398,6 +4368,22 @@ const ui = {
                     break;
                 }
             }
+        });
+
+        ledCanvas.addEventListener('mousemove', e => {
+            // Early return if not dragging to avoid unnecessary calculations
+            if (!state.isDragging || !state.draggedImage) {
+                return;
+            }
+
+            const rect = ledCanvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left) / rect.width * CONFIG.SCENE_WIDTH;
+            const mouseY = (e.clientY - rect.top) / rect.height * CONFIG.SCENE_HEIGHT;
+
+            state.draggedImage.baseX = mouseX;
+            state.draggedImage.baseY = mouseY;
+            state.draggedImage.x = mouseX;
+            state.draggedImage.y = mouseY;
         });
 
         ledCanvas.addEventListener('mouseup', () => {
