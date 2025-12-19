@@ -26,7 +26,6 @@
 
 ![ESLint](https://img.shields.io/badge/ESLint-enabled-4B32C3?style=for-the-badge&logo=eslint&logoColor=white)
 ![Prettier](https://img.shields.io/badge/Prettier-formatted-F7B93E?style=for-the-badge&logo=prettier&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-ready-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![Gradio](https://img.shields.io/badge/Gradio-UI-FF6B6B?style=for-the-badge&logo=gradio&logoColor=white)
 
 ![Open Sora](https://img.shields.io/badge/Open--Sora-integrated-00D9FF?style=for-the-badge&logo=openai&logoColor=white)
@@ -65,7 +64,7 @@ A mindblowing, production-ready platform combining real-time LED scene visualiza
 ## 🏗️ Architecture
 
 ```
-neon-tokyo/
+neon/
 ├── remixed-badc0925.html      # LED Scene Visualizer (Frontend)
 ├── scene-preset-schema.json    # Scene configuration schema
 ├── text-to-video-app/          # Video generation service (Python/Gradio)
@@ -86,8 +85,8 @@ neon-tokyo/
 
 ```bash
 # Clone repository
-git clone https://github.com/zkaedii/neon-tokyo.git
-cd neon-tokyo
+git clone https://github.com/zkaedii/neon.git
+cd neon
 
 # Install dependencies
 npm install
@@ -221,7 +220,7 @@ Pre-configured dashboards:
 ## 🛠️ Development Tools
 
 ### Code Quality
-- **ESLint**: JavaScript/HTML linting
+- **ESLint**: HTML/JavaScript linting (inline scripts in HTML)
 - **Prettier**: Code formatting
 - **Black**: Python formatting
 - **isort**: Import sorting
@@ -236,7 +235,7 @@ Pre-configured dashboards:
 ## 📦 Project Structure
 
 ```
-neon-tokyo/
+neon/
 ├── .github/
 │   └── workflows/          # CI/CD pipelines
 ├── monitoring/             # Prometheus & Grafana
@@ -246,6 +245,8 @@ neon-tokyo/
 │   ├── utils.py            # Utilities
 │   ├── test_app.py         # Tests
 │   └── requirements.txt    # Dependencies
+├── remixed-badc0925.html   # LED Scene Visualizer
+├── scene-preset-schema.json # Scene configuration schema
 ├── docker-compose.prod.yml # Production orchestration
 ├── nginx.conf              # Nginx configuration
 ├── package.json            # Node.js workspace config
@@ -299,14 +300,11 @@ MIT License - see [LICENSE](text-to-video-app/LICENSE) file for details.
 
 ## 📧 Support
 
-- **Issues**: [GitHub Issues](https://github.com/zkaedii/neon-tokyo/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/zkaedii/neon-tokyo/discussions)
+- **Issues**: [GitHub Issues](https://github.com/zkaedii/neon/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/zkaedii/neon/discussions)
 
 ---
 
 **Built with ❤️ and lots of ☕ by the Neon Tokyo team**
 
 *Experience the future of creative technology* 🚀
-#   n e o n 
- 
- 
