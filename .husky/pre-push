@@ -1,4 +1,9 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-npm run test
+# Skip tests on Windows (make command not available)
+if command -v make >/dev/null 2>&1; then
+  npm run test
+else
+  echo "Skipping tests: make command not available (likely Windows environment)"
+fi
