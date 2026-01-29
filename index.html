@@ -616,6 +616,9 @@
         let lastTime = performance.now();
         let frameCount = 0;
         
+        // Cache DOM elements for performance
+        let fpsElement, energyLevelElement, particleCountElement;
+        
         // Initialize particles
         function initParticles() {
             particles = [];
@@ -645,16 +648,23 @@
                 setupAudio();
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    audioContext.decodeAudioData(event.target.result, (buffer) => {
-                        const source = audioContext.createBufferSource();
-                        source.buffer = buffer;
-                        source.connect(analyser);
-                        analyser.connect(audioContext.destination);
-                        source.start(0);
-                        settings.audioReact = true;
-                        document.getElementById('audioReactBtn').classList.add('active');
-                        document.getElementById('audioControls').classList.add('active');
-                    });
+                    audioContext.decodeAudioData(
+                        event.target.result,
+                        (buffer) => {
+                            const source = audioContext.createBufferSource();
+                            source.buffer = buffer;
+                            source.connect(analyser);
+                            analyser.connect(audioContext.destination);
+                            source.start(0);
+                            settings.audioReact = true;
+                            document.getElementById('audioReactBtn').classList.add('active');
+                            document.getElementById('audioControls').classList.add('active');
+                        },
+                        (error) => {
+                            console.error('Error decoding audio:', error);
+                            alert('Failed to load audio file. Please try a different file format.');
+                        }
+                    );
                 };
                 reader.readAsArrayBuffer(file);
             }
@@ -680,8 +690,12 @@
             // Inner core
             const gradient = ctx.createRadialGradient(x, y, 0, x, y, effectiveRadius);
             gradient.addColorStop(0, color);
-            gradient.addColorStop(0.5, color + '88');
-            gradient.addColorStop(1, color + '00');
+            // Convert hex to rgba for proper alpha channel
+            const r = parseInt(color.substr(1, 2), 16);
+            const g = parseInt(color.substr(3, 2), 16);
+            const b = parseInt(color.substr(5, 2), 16);
+            gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.53)`);
+            gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
             
             ctx.beginPath();
             ctx.arc(x, y, effectiveRadius, 0, Math.PI * 2);
@@ -747,7 +761,7 @@
                 fps = frameCount;
                 frameCount = 0;
                 lastTime = currentTime;
-                document.getElementById('fps').textContent = fps;
+                if (fpsElement) fpsElement.textContent = fps;
             }
             
             // Clear canvas with trail effect
@@ -807,8 +821,8 @@
             time++;
             
             // Update stats
-            document.getElementById('energyLevel').textContent = Math.round(settings.intensity) + '%';
-            document.getElementById('particleCount').textContent = particles.length;
+            if (energyLevelElement) energyLevelElement.textContent = Math.round(settings.intensity) + '%';
+            if (particleCountElement) particleCountElement.textContent = particles.length;
             
             requestAnimationFrame(animate);
         }
@@ -919,7 +933,10 @@
             // Fullscreen button
             document.getElementById('fullscreenBtn').addEventListener('click', () => {
                 if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen();
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.error('Error attempting to enable fullscreen:', err);
+                        alert('Unable to enter fullscreen mode. Please try again or use F11.');
+                    });
                 } else {
                     document.exitFullscreen();
                 }
@@ -927,11 +944,16 @@
             
             // Export button
             document.getElementById('exportBtn').addEventListener('click', () => {
-                const dataURL = canvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.download = 'chakra-xray-' + Date.now() + '.png';
-                link.href = dataURL;
-                link.click();
+                try {
+                    const dataURL = canvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.download = 'chakra-xray-' + Date.now() + '.png';
+                    link.href = dataURL;
+                    link.click();
+                } catch (error) {
+                    console.error('Error exporting image:', error);
+                    alert('Failed to export image. This may be due to browser security restrictions.');
+                }
             });
             
             // Share button
@@ -952,6 +974,11 @@
             const loading = document.getElementById('loading');
             loading.classList.add('active');
             
+            // Cache DOM elements for performance
+            fpsElement = document.getElementById('fps');
+            energyLevelElement = document.getElementById('energyLevel');
+            particleCountElement = document.getElementById('particleCount');
+            
             setTimeout(() => {
                 loading.classList.remove('active');
                 setupControls();
@@ -967,16 +994,14 @@
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
             
-            // Add particles near cursor
-            if (Math.random() > 0.7) {
+            // Add particles near cursor - check limit before creating
+            if (Math.random() > 0.7 && particles.length < settings.particleCount * 1.5) {
                 const particle = new Particle();
                 particle.x = x;
                 particle.y = y;
                 particle.vx = (Math.random() - 0.5) * 4;
                 particle.vy = (Math.random() - 0.5) * 4;
-                if (particles.length < settings.particleCount * 1.5) {
-                    particles.push(particle);
-                }
+                particles.push(particle);
             }
         });
         
@@ -986,19 +1011,18 @@
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
             
-            for (let i = 0; i < 50; i++) {
+            // Only add burst if we have room
+            const maxParticles = settings.particleCount * 2;
+            const burstSize = Math.min(50, maxParticles - particles.length);
+            
+            for (let i = 0; i < burstSize; i++) {
                 const particle = new Particle();
                 particle.x = x;
                 particle.y = y;
-                const angle = (Math.PI * 2 * i) / 50;
+                const angle = (Math.PI * 2 * i) / burstSize;
                 particle.vx = Math.cos(angle) * 5;
                 particle.vy = Math.sin(angle) * 5;
                 particles.push(particle);
-            }
-            
-            // Remove excess particles
-            if (particles.length > settings.particleCount * 2) {
-                particles.splice(0, particles.length - settings.particleCount);
             }
         });
     </script>
